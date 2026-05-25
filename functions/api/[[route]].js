@@ -68,7 +68,7 @@ export async function onRequest(context) {
         }
     }
 
-    // --- 4. BEZIEHUNGEN (Mit Reziprozität/Automatisierung) ---
+    // --- 4. BEZIEHUNGEN (Erweitert) ---
     if (path.startsWith('connections')) {
         if (request.method === 'GET') {
             const { results } = await env.DB.prepare("SELECT * FROM connections").all();
@@ -77,31 +77,25 @@ export async function onRequest(context) {
         if (request.method === 'POST') {
             const { from_person_id, to_person_id, type } = await request.json();
             
-            // Verhindern von Duplikaten
+            // Verhindern von exakten Duplikaten in beide Richtungen
             await env.DB.prepare("DELETE FROM connections WHERE (from_person_id=? AND to_person_id=?) OR (from_person_id=? AND to_person_id=?)")
                 .bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
 
             if (type === 'spouse') {
-                // Ehen sind immer beidseitig
-                await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'spouse'), (?, ?, 'spouse')")
-                    .bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
+                await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'spouse'), (?, ?, 'spouse')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
             } else if (type === 'parent_child') {
-                // from = Elternteil, to = Kind. Reziprok: to = Kind von from
-                await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent'), (?, ?, 'child')")
-                    .bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
+                await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent'), (?, ?, 'child')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
+            } else if (type === 'sibling') {
+                await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'sibling'), (?, ?, 'sibling')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
+            } else if (type === 'aunt_uncle') {
+                // Von = Tante/Onkel, Zu = Neffe/Nichte
+                await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
             }
-            return new Response(JSON.stringify({ success: true }));
-        }
-        if (request.method === 'DELETE') {
-            const { from, to } = await request.json();
-            // Löscht die Beziehung in beide Richtungen
-            await env.DB.prepare("DELETE FROM connections WHERE (from_person_id=? AND to_person_id=?) OR (from_person_id=? AND to_person_id=?)")
-                .bind(from, to, to, from).run();
             return new Response(JSON.stringify({ success: true }));
         }
     }
 
-    // --- 5. BILD MARKIERUNGEN (Mit Edit & Delete) ---
+    // --- 5. BILD MARKIERUNGEN ---
     if (path.startsWith('tags')) {
         if (request.method === 'GET') {
             const photoId = url.searchParams.get('photoId');
@@ -114,7 +108,7 @@ export async function onRequest(context) {
             return new Response(JSON.stringify({ success: true }));
         }
         if (request.method === 'PUT') {
-            const data = await request.json(); // Für Drag & Drop der Tags
+            const data = await request.json();
             await env.DB.prepare("UPDATE photo_tags SET x_percent=?, y_percent=? WHERE id=?").bind(data.x_percent, data.y_percent, data.id).run();
             return new Response(JSON.stringify({ success: true }));
         }
