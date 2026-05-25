@@ -28,8 +28,11 @@
         .gender-m { border-color: #3b82f6; } 
         .gender-f { border-color: #ec4899; } 
         .gender-d { border-color: #10b981; }
+        
+        /* Tooltip & Line Hover Helper */
+        .tree-line { cursor: help; transition: stroke-width 0.2s; pointer-events: stroke; }
+        .tree-line:hover { filter: drop-shadow(0 0 3px rgba(0,0,0,0.4)); }
 
-        /* Edit Mode Highlight für Tabelle */
         .edit-mode-row { background-color: #eff6ff !important; border-left: 4px solid #3b82f6; transition: all 0.2s; }
     </style>
 </head>
@@ -161,11 +164,11 @@
             <div id="tree-viewport">
                 <div id="tree-canvas">
                     <div id="tree-background-layer" class="absolute top-0 left-0 w-full h-full pointer-events-none z-0"></div>
-                    <svg id="tree-svg" class="absolute top-0 left-0 w-full h-full pointer-events-none z-10"></svg>
-                    <div id="tree-nodes-layer" class="absolute top-0 left-0 w-full h-full z-20"></div>
+                    <svg id="tree-svg" class="absolute top-0 left-0 w-full h-full z-10" style="pointer-events: none;"></svg>
+                    <div id="tree-nodes-layer" class="absolute top-0 left-0 w-full h-full z-20 pointer-events-none"></div>
                 </div>
             </div>
-            <div class="text-xs text-slate-500 mt-2 text-center">Tipp: Ziehe Personen nach oben oder unten. Sie rasten automatisch auf der jeweiligen Generationsebene ein.</div>
+            <div class="text-xs text-slate-500 mt-2 text-center">Tipp: Fahre mit der Maus über die Linien, um die Beziehungsart zu sehen. Personen rasten automatisch beim Ziehen ein.</div>
         </div>
     </main>
 
@@ -191,7 +194,7 @@
         let connections = [];
         let activePhotoId = null;
         let newTagCoords = null;
-        const LEVEL_HEIGHT = 160; // Feste Höhe pro Generationsebene
+        const LEVEL_HEIGHT = 160; 
 
         document.addEventListener('DOMContentLoaded', async () => {
             await loadPersons();
@@ -210,7 +213,6 @@
             
             if(tabId === 'tree') {
                 loadTree();
-                // Beim ersten Öffnen die Kamera in die Mitte der 4000x4000 Zeichenfläche setzen
                 setTimeout(() => document.getElementById('tree-viewport').scrollTo(1500, 1750), 100);
             }
         }
@@ -259,16 +261,11 @@
             await loadPersons();
         }
 
-        // --- BEARBEITUNGSMODUS HIGHLIGHT ---
         function editPerson(p) {
-            // Alle Highlights entfernen
             document.querySelectorAll('tr[id^="row-person-"]').forEach(tr => tr.classList.remove('edit-mode-row'));
-            
-            // Aktuelle Zeile hervorheben
             const row = document.getElementById(`row-person-${p.id}`);
             if(row) row.classList.add('edit-mode-row');
 
-            // Formular füllen
             document.getElementById('p-id').value = p.id;
             document.getElementById('p-first').value = p.first_name;
             document.getElementById('p-last').value = p.last_name;
@@ -276,12 +273,10 @@
             document.getElementById('p-birth').value = p.birth_date || '';
             document.getElementById('p-role').value = p.role || '';
             
-            // UI anpassen
             const container = document.getElementById('person-form-container');
             container.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50');
             document.getElementById('person-form-title').innerHTML = `<span class="text-blue-600"><i class="fa-solid fa-pen-to-square mr-2"></i>Wird bearbeitet:</span> ${p.first_name}`;
             document.getElementById('cancel-edit-btn').classList.remove('hidden');
-            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -289,7 +284,6 @@
             document.querySelectorAll('tr[id^="row-person-"]').forEach(tr => tr.classList.remove('edit-mode-row'));
             const container = document.getElementById('person-form-container');
             container.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50');
-            
             document.getElementById('p-id').value = '';
             document.querySelectorAll('#tab-persons input').forEach(i => i.value = '');
             document.getElementById('p-gender').value = 'm';
@@ -304,7 +298,7 @@
             }
         }
 
-        // --- 2. MEDIATHEK & UPLOAD (Unverändert) ---
+        // --- 2. MEDIATHEK ---
         async function uploadPhoto() {
             const fileInput = document.getElementById('fileInput');
             if(!fileInput.files.length) return alert("Bitte wähle ein Bild aus.");
@@ -389,7 +383,7 @@
             });
         }
 
-        // --- 4. STAMMBAUM (Infinite Canvas & Snap-To-Level) ---
+        // --- 4. STAMMBAUM (Mit Auto-Platzierung) ---
         async function loadTree() {
             const [resNodes, resConns] = await Promise.all([fetch('/api/tree'), fetch('/api/connections')]);
             const nodes = await resNodes.json();
@@ -406,16 +400,13 @@
             });
 
             treePersons.forEach((p, idx) => {
-                // Wenn noch nie platziert: Werfe sie in die Mitte der Karte
                 if(p.x === null) { p.x = 2000 + (idx * 20); p.y = 2000 + (idx * 20); }
-                
-                // Für den Hintergrund erfassen
                 if (p.y < minY) minY = p.y;
                 if (p.y > maxY) maxY = p.y;
 
                 const el = document.createElement('div');
                 const genderClass = p.gender === 'm' ? 'gender-m' : p.gender === 'f' ? 'gender-f' : 'gender-d';
-                el.className = `tree-node ${genderClass}`;
+                el.className = `tree-node ${genderClass} pointer-events-auto`;
                 el.dataset.id = p.id;
                 el.style.left = p.x + 'px';
                 el.style.top = p.y + 'px';
@@ -423,24 +414,21 @@
                 el.innerHTML = `<div class="font-bold text-slate-800 text-sm">${p.first_name} ${p.last_name}</div>
                                 ${p.birth_date ? `<div class="text-[10px] text-slate-500">* ${p.birth_date.split('-')[0]}</div>` : ''}`;
 
-                // Dragging Logik mit automatischem Y-Einrasten (Snap-to-Grid)
                 el.addEventListener('mousedown', (e) => {
                     let offsetX = e.clientX - el.getBoundingClientRect().left;
                     let offsetY = e.clientY - el.getBoundingClientRect().top;
-                    const viewport = document.getElementById('tree-viewport');
                     const canvasRect = document.getElementById('tree-canvas').getBoundingClientRect();
                     
                     const move = (ev) => {
                         el.style.left = (ev.clientX - canvasRect.left - offsetX) + 'px';
                         el.style.top = (ev.clientY - canvasRect.top - offsetY) + 'px';
-                        drawTreeLines(); // Linien live updaten
+                        drawTreeLines();
                     };
                     
                     const stop = async () => {
                         document.removeEventListener('mousemove', move);
                         document.removeEventListener('mouseup', stop);
                         
-                        // SNAP TO LEVEL LOGIK: Raste auf den nächsten Faktor von 160 ein
                         let currentY = parseFloat(el.style.top);
                         let snappedY = Math.round(currentY / LEVEL_HEIGHT) * LEVEL_HEIGHT;
                         el.style.top = snappedY + 'px';
@@ -449,7 +437,7 @@
                             method: 'POST', headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({ person_id: p.id, x_pos: parseFloat(el.style.left), y_pos: snappedY })
                         });
-                        loadTree(); // Komplett neu zeichnen (für Hintergrundlinien)
+                        loadTree(); 
                     };
                     document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop);
                 });
@@ -464,16 +452,12 @@
         function drawDynamicLevels(minY, maxY) {
             const bgLayer = document.getElementById('tree-background-layer');
             bgLayer.innerHTML = '';
-            
-            // Finde die niedrigste und höchste eingerastete Ebene (inkl. Puffer oben/unten)
             let startLevel = Math.floor(minY / LEVEL_HEIGHT) - 1;
             let endLevel = Math.ceil(maxY / LEVEL_HEIGHT) + 1;
-            
             for (let i = startLevel; i <= endLevel; i++) {
-                const yPos = i * LEVEL_HEIGHT;
                 const line = document.createElement('div');
                 line.className = 'tree-level-bg';
-                line.style.top = (yPos - 20) + 'px'; // Leicht über den Köpfen zeichnen
+                line.style.top = (i * LEVEL_HEIGHT - 20) + 'px'; 
                 bgLayer.appendChild(line);
             }
         }
@@ -484,21 +468,53 @@
             const type = document.getElementById('conn-type').value;
 
             if(!from || !to || from === to) return alert("Ungültige Personenauswahl.");
+
+            // INTELLIGENTE ERSTPLATZIERUNG
+            const resTree = await fetch('/api/tree');
+            const currentNodes = await resTree.json();
+            
+            const isFromNew = !currentNodes.find(n => n.person_id == from);
+            const isToNew = !currentNodes.find(n => n.person_id == to);
+            
+            const fromNode = currentNodes.find(n => n.person_id == from) || { x_pos: 2000, y_pos: 2000 };
+            const toNode = currentNodes.find(n => n.person_id == to) || { x_pos: 2000, y_pos: 2000 };
+
+            if (isToNew && !isFromNew) {
+                let nX = fromNode.x_pos; let nY = fromNode.y_pos;
+                if(type === 'parent_child') { nY += LEVEL_HEIGHT; } else if(type === 'spouse') { nX += 180; } else if(type === 'sibling') { nX += 160; } else if(type === 'aunt_uncle') { nX += 160; nY += LEVEL_HEIGHT; }
+                await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: to, x_pos: nX, y_pos: nY }) });
+            } 
+            else if (isFromNew && !isToNew) {
+                let nX = toNode.x_pos; let nY = toNode.y_pos;
+                if(type === 'parent_child') { nY -= LEVEL_HEIGHT; } else if(type === 'spouse') { nX -= 180; } else if(type === 'sibling') { nX -= 160; } else if(type === 'aunt_uncle') { nX -= 160; nY -= LEVEL_HEIGHT; }
+                await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: from, x_pos: nX, y_pos: nY }) });
+            } 
+            else if (isFromNew && isToNew) {
+                await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: from, x_pos: 2000, y_pos: 2000 }) });
+                let nX = 2000; let nY = 2000;
+                if(type === 'parent_child') { nY += LEVEL_HEIGHT; } else if(type === 'spouse') { nX += 180; } else if(type === 'sibling') { nX += 160; } else if(type === 'aunt_uncle') { nX += 160; nY += LEVEL_HEIGHT; }
+                await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: to, x_pos: nX, y_pos: nY }) });
+            }
+
+            // Verbindung in der Datenbank anlegen (mit Autopopulation)
             await fetch('/api/connections', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ from_person_id: from, to_person_id: to, type }) });
             loadTree();
         }
 
-        // Intelligente SVG Linien für alle 4 Beziehungstypen
+        // --- SVG TOOLTIP HELPER ---
+        function appendTooltip(element, text) {
+            const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+            title.textContent = "Beziehung: " + text;
+            element.appendChild(title);
+        }
+
         function drawTreeLines() {
             const svg = document.getElementById('tree-svg');
             svg.innerHTML = '';
-
             const drawnPairs = new Set(); 
 
             connections.forEach(c => {
                 const hash = [c.from_person_id, c.to_person_id].sort().join('-');
-                
-                // Elternteil zu Kind geht nur in eine Richtung beim Zeichnen
                 if (c.type !== 'child' && drawnPairs.has(hash)) return; 
                 if (c.type !== 'child') drawnPairs.add(hash);
 
@@ -511,38 +527,39 @@
                     const x2 = p2.offsetLeft + p2.offsetWidth/2;
                     const y2 = p2.offsetTop + p2.offsetHeight/2;
 
+                    let el;
+
                     if (c.type === 'spouse') {
-                        // Pink, gestrichelt für Ehe
-                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                        line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-                        line.setAttribute('stroke', '#ec4899'); line.setAttribute('stroke-width', '3'); line.setAttribute('stroke-dasharray', '8 4');
-                        svg.appendChild(line);
+                        el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        el.setAttribute('x1', x1); el.setAttribute('y1', y1); el.setAttribute('x2', x2); el.setAttribute('y2', y2);
+                        el.setAttribute('stroke', '#ec4899'); el.setAttribute('stroke-dasharray', '8 4');
+                        appendTooltip(el, 'Ehepartner');
                     } 
                     else if (c.type === 'sibling') {
-                        // Grün, durchgehend für Geschwister
-                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                        line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-                        line.setAttribute('stroke', '#10b981'); line.setAttribute('stroke-width', '2.5');
-                        svg.appendChild(line);
+                        el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        el.setAttribute('x1', x1); el.setAttribute('y1', y1); el.setAttribute('x2', x2); el.setAttribute('y2', y2);
+                        el.setAttribute('stroke', '#10b981'); 
+                        appendTooltip(el, 'Geschwister');
                     }
                     else if (c.type === 'aunt_uncle') {
-                        // Lila, stark gestrichelt für Tante/Onkel
-                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                        line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-                        line.setAttribute('stroke', '#8b5cf6'); line.setAttribute('stroke-width', '2'); line.setAttribute('stroke-dasharray', '4 6');
-                        svg.appendChild(line);
+                        el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        el.setAttribute('x1', x1); el.setAttribute('y1', y1); el.setAttribute('x2', x2); el.setAttribute('y2', y2);
+                        el.setAttribute('stroke', '#8b5cf6'); el.setAttribute('stroke-dasharray', '4 6');
+                        appendTooltip(el, 'Tante / Onkel');
                     }
                     else if (c.type === 'child') {
-                        // Dunkelgraue Kurve für Eltern-Kind (Von Elter nach unten, zu Kind nach oben)
-                        const px = p2.offsetLeft + p2.offsetWidth/2; // Elter
-                        const py = p2.offsetTop + p2.offsetHeight;
-                        const cx = p1.offsetLeft + p1.offsetWidth/2; // Kind
-                        const cy = p1.offsetTop;
-
-                        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        const px = p2.offsetLeft + p2.offsetWidth/2; const py = p2.offsetTop + p2.offsetHeight;
+                        const cx = p1.offsetLeft + p1.offsetWidth/2; const cy = p1.offsetTop;
+                        el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                         const d = `M ${px} ${py} C ${px} ${py + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
-                        path.setAttribute('d', d); path.setAttribute('fill', 'none'); path.setAttribute('stroke', '#475569'); path.setAttribute('stroke-width', '2');
-                        svg.appendChild(path);
+                        el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569');
+                        appendTooltip(el, 'Elternteil -> Kind');
+                    }
+
+                    if (el) {
+                        el.setAttribute('stroke-width', '4'); // Etwas dicker für leichteres Hovern
+                        el.setAttribute('class', 'tree-line');
+                        svg.appendChild(el);
                     }
                 }
             });
