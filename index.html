@@ -22,12 +22,12 @@
         /* Infinite Canvas CSS */
         #tree-viewport { position: relative; width: 100%; height: 750px; overflow: hidden; background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px); background-size: 25px 25px; background-color: #f8fafc; cursor: grab; border-radius: 0.75rem; border: 1px solid #e2e8f0; }
         #tree-viewport:active { cursor: grabbing; }
-        #tree-canvas { position: absolute; top: 0; left: 0; width: 0; height: 0; }
+        #tree-canvas { position: absolute; top: 0; left: 0; width: 0; height: 0; transition: transform 0.1s ease-out; }
         
         .tree-level-bg { position: absolute; height: 1px; border-top: 2px dashed #cbd5e1; width: 20000px; left: -10000px; pointer-events: none; }
         
-        .tree-node { position: absolute; background: white; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: grab; user-select: none; z-index: 20; min-width: 140px; text-align: center; }
-        .tree-node:active { cursor: grabbing; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); transform: scale(1.02); }
+        .tree-node { position: absolute; background: white; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: grab; user-select: none; z-index: 20; min-width: 140px; text-align: center; transition: left 0.3s, top 0.3s;}
+        .tree-node:active { cursor: grabbing; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); transform: scale(1.02); transition: none; }
         .gender-m { border-color: #3b82f6; } .gender-f { border-color: #ec4899; } .gender-d { border-color: #10b981; }
         
         .node-delete-btn { position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 11px; cursor: pointer; opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
@@ -37,7 +37,6 @@
         .tree-line:hover { filter: drop-shadow(0 0 3px rgba(0,0,0,0.4)); stroke-width: 6; }
         .edit-mode-row { background-color: #eff6ff !important; border-left: 4px solid #3b82f6; transition: all 0.2s; }
         
-        /* Custom Scrollbar for Sidebar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -148,7 +147,10 @@
                     <div><label class="block text-xs font-medium text-slate-500 mb-1">Person 2</label><select id="conn-to" class="px-3 py-2 border border-slate-300 rounded-md text-sm w-48 bg-white"></select></div>
                     <button onclick="addConnection()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-bold transition-colors shadow-sm">Verbinden</button>
                 </div>
-                <button onclick="centerTreeView()" class="text-slate-500 hover:text-slate-900 text-sm font-bold px-3 py-2 bg-slate-100 rounded-md transition-colors"><i class="fa-solid fa-location-crosshairs mr-2"></i>Ansicht Zentrieren</button>
+                <div class="flex gap-2">
+                    <button onclick="centerTreeView()" class="text-slate-600 hover:text-slate-900 text-sm font-bold px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"><i class="fa-solid fa-location-crosshairs mr-2"></i>Zentrieren</button>
+                    <button onclick="autoLayoutTree()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-4 py-2 rounded-md transition-colors shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Auto-Layout (Magie)</button>
+                </div>
             </div>
             
             <div class="flex gap-4 h-[750px]">
@@ -187,12 +189,11 @@
     <script>
         let persons = [];
         let connections = [];
-        let placedNodes = []; // Hält Personen, die X/Y Koordinaten haben
+        let placedNodes = []; 
         let activePhotoId = null;
         let newTagCoords = null;
         const LEVEL_HEIGHT = 160; 
 
-        // Canvas Panning State
         let panX = 0, panY = 0;
         let isPanning = false;
         let startX = 0, startY = 0;
@@ -216,70 +217,45 @@
             if(tabId === 'tree') loadTree();
         }
 
-        // --- PANNING LOGIK (Infinite Canvas) ---
+        // --- PANNING ---
         function setupPanning() {
             const viewport = document.getElementById('tree-viewport');
             viewport.addEventListener('mousedown', (e) => {
-                if(e.target.closest('.tree-node')) return; // Wenn ein Node geklickt wird, greift dessen eigene Drag-Logik
-                isPanning = true;
-                startX = e.clientX - panX;
-                startY = e.clientY - panY;
+                if(e.target.closest('.tree-node')) return;
+                isPanning = true; startX = e.clientX - panX; startY = e.clientY - panY;
             });
             window.addEventListener('mousemove', (e) => {
                 if(!isPanning) return;
-                panX = e.clientX - startX;
-                panY = e.clientY - startY;
+                panX = e.clientX - startX; panY = e.clientY - startY;
                 applyTransform();
             });
             window.addEventListener('mouseup', () => { isPanning = false; });
         }
-
         function applyTransform() {
             document.getElementById('tree-canvas').style.transform = `translate(${panX}px, ${panY}px)`;
-            // Damit das Raster (Hintergrund) unendlich wirkt:
             document.getElementById('tree-viewport').style.backgroundPosition = `${panX}px ${panY}px`;
         }
-
         function centerTreeView() {
             if(placedNodes.length === 0) { panX = 0; panY = 0; applyTransform(); return; }
-            
-            // Berechne das Zentrum aller platzierten Personen
-            let minX = Math.min(...placedNodes.map(n => n.x));
-            let maxX = Math.max(...placedNodes.map(n => n.x));
-            let minY = Math.min(...placedNodes.map(n => n.y));
-            let maxY = Math.max(...placedNodes.map(n => n.y));
-
-            const centerX = (minX + maxX) / 2;
-            const centerY = (minY + maxY) / 2;
-
+            let minX = Math.min(...placedNodes.map(n => n.x)); let maxX = Math.max(...placedNodes.map(n => n.x));
+            let minY = Math.min(...placedNodes.map(n => n.y)); let maxY = Math.max(...placedNodes.map(n => n.y));
+            const centerX = (minX + maxX) / 2; const centerY = (minY + maxY) / 2;
             const viewport = document.getElementById('tree-viewport');
-            panX = (viewport.offsetWidth / 2) - centerX;
-            panY = (viewport.offsetHeight / 2) - centerY;
-            
+            panX = (viewport.offsetWidth / 2) - centerX; panY = (viewport.offsetHeight / 2) - centerY;
             applyTransform();
         }
 
-        // --- 1. PERSONEN VERWALTUNG ---
+        // --- 1. PERSONEN & 2. MEDIATHEK & 3. TAGGING ---
         async function loadPersons() {
             const res = await fetch('/api/persons'); persons = await res.json();
             const tbody = document.getElementById('person-table-body');
             const selects = [document.getElementById('new-tag-select'), document.getElementById('conn-from'), document.getElementById('conn-to')];
             tbody.innerHTML = ''; let optionsHTML = '<option value="">Bitte wählen...</option>';
-            
             persons.forEach(p => {
                 const icon = p.gender === 'm' ? '<i class="fa-solid fa-mars text-blue-500 w-4"></i>' : p.gender === 'f' ? '<i class="fa-solid fa-venus text-pink-500 w-4"></i>' : '<i class="fa-solid fa-genderless text-emerald-500 w-4"></i>';
                 const bYear = p.birth_date ? p.birth_date.split('-')[0] : ''; const dYear = p.death_date ? p.death_date.split('-')[0] : '';
                 const lifeStr = (bYear || dYear) ? `${bYear ? '*'+bYear : ''} ${dYear ? ' - †'+dYear : ''}` : '-';
-                tbody.innerHTML += `
-                    <tr id="row-person-${p.id}" class="hover:bg-slate-50 cursor-default">
-                        <td class="px-3 py-3 font-medium text-slate-900">${icon} ${p.first_name} ${p.last_name}</td>
-                        <td class="px-3 py-3 text-slate-500">${lifeStr}</td>
-                        <td class="px-3 py-3 text-slate-500 truncate max-w-[150px]">${p.role || ''}</td>
-                        <td class="px-3 py-3 text-right">
-                            <button onclick='editPerson(${JSON.stringify(p)})' class="text-blue-600 hover:text-blue-900 mr-3 px-2 py-1"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="deletePerson(${p.id})" class="text-red-500 hover:text-red-700 px-2 py-1"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>`;
+                tbody.innerHTML += `<tr id="row-person-${p.id}" class="hover:bg-slate-50 cursor-default"><td class="px-3 py-3 font-medium text-slate-900">${icon} ${p.first_name} ${p.last_name}</td><td class="px-3 py-3 text-slate-500">${lifeStr}</td><td class="px-3 py-3 text-slate-500 truncate max-w-[150px]">${p.role || ''}</td><td class="px-3 py-3 text-right"><button onclick='editPerson(${JSON.stringify(p)})' class="text-blue-600 hover:text-blue-900 mr-3 px-2 py-1"><i class="fa-solid fa-pen"></i></button><button onclick="deletePerson(${p.id})" class="text-red-500 hover:text-red-700 px-2 py-1"><i class="fa-solid fa-trash"></i></button></td></tr>`;
                 optionsHTML += `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`;
             });
             selects.forEach(s => { if(s) s.innerHTML = optionsHTML; });
@@ -304,7 +280,6 @@
         }
         async function deletePerson(id) { if(confirm("Diese Person wirklich komplett löschen?")) { await fetch(`/api/persons?id=${id}`, { method: 'DELETE' }); await loadPersons(); } }
 
-        // --- 2. MEDIATHEK & 3. TAGGING (Kompakt gelassen, da unverändert) ---
         async function uploadPhoto() { const fileInput = document.getElementById('fileInput'); if(!fileInput.files.length) return alert("Bitte wähle ein Bild aus."); const btn = event.currentTarget; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Lädt hoch...'; btn.disabled = true; const fd = new FormData(); fd.append('file', fileInput.files[0]); fd.append('date_taken', document.getElementById('dateInput').value); fd.append('description', document.getElementById('descInput').value); await fetch('/api/photos', { method: 'POST', body: fd }); fileInput.value = ''; document.getElementById('dateInput').value = ''; document.getElementById('descInput').value = ''; btn.innerHTML = '<i class="fa-solid fa-upload mr-2"></i>Foto hochladen'; btn.disabled = false; await loadPhotos(); switchTab('gallery'); }
         async function loadPhotos() { const res = await fetch('/api/photos'); const photos = await res.json(); const grid = document.getElementById('gallery-grid'); grid.innerHTML = ''; photos.forEach(photo => { const dateStr = photo.date_taken ? photo.date_taken.split('-').reverse().join('.') : ''; grid.innerHTML += `<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden group relative"><div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"><button onclick="deletePhoto(${photo.id}, event)" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full shadow flex items-center justify-center"><i class="fa-solid fa-trash"></i></button></div><div class="h-48 bg-slate-100 cursor-pointer overflow-hidden" onclick="openModal(${photo.id}, '${photo.url}')"><img src="${photo.url}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"></div><div class="p-4"><p class="text-xs font-bold text-blue-600 mb-1">${dateStr}</p><p class="text-sm text-slate-700 line-clamp-2">${escapeHTML(photo.description) || '<i>Keine Beschreibung</i>'}</p></div></div>`; }); }
         async function deletePhoto(id, e) { e.stopPropagation(); if(confirm("Foto löschen?")) { await fetch(`/api/photos?id=${id}`, { method: 'DELETE' }); loadPhotos(); } }
@@ -347,36 +322,26 @@
                     const bYear = p.birth_date ? p.birth_date.split('-')[0] : ''; const dYear = p.death_date ? p.death_date.split('-')[0] : '';
                     let lifeStr = ''; if(bYear || dYear) lifeStr = `<div class="text-[10px] text-slate-500">${bYear ? '*'+bYear : ''} ${dYear ? '†'+dYear : ''}</div>`;
 
-                    el.innerHTML = `
-                        <button class="node-delete-btn" onclick="removeNodeFromTree(${p.id}, event)" title="Aus Ansicht entfernen"><i class="fa-solid fa-xmark"></i></button>
-                        <div class="font-bold text-slate-800 text-sm">${p.first_name} ${p.last_name}</div>${lifeStr}
-                    `;
+                    el.innerHTML = `<button class="node-delete-btn" onclick="removeNodeFromTree(${p.id}, event)" title="Aus Ansicht entfernen"><i class="fa-solid fa-xmark"></i></button><div class="font-bold text-slate-800 text-sm">${p.first_name} ${p.last_name}</div>${lifeStr}`;
 
-                    // Dragging angepasst an die transformierte Canvas (panX, panY)
                     el.addEventListener('mousedown', (e) => {
                         if(e.target.closest('button')) return;
-                        
-                        const startNodeX = parseFloat(el.style.left);
-                        const startNodeY = parseFloat(el.style.top);
-                        const startMouseX = e.clientX;
-                        const startMouseY = e.clientY;
+                        const startNodeX = parseFloat(el.style.left); const startNodeY = parseFloat(el.style.top);
+                        const startMouseX = e.clientX; const startMouseY = e.clientY;
                         
                         const move = (ev) => {
-                            const dx = (ev.clientX - startMouseX);
-                            const dy = (ev.clientY - startMouseY);
-                            el.style.left = (startNodeX + dx) + 'px';
-                            el.style.top = (startNodeY + dy) + 'px';
-                            drawTreeLines();
+                            el.style.left = (startNodeX + (ev.clientX - startMouseX)) + 'px';
+                            el.style.top = (startNodeY + (ev.clientY - startMouseY)) + 'px';
+                            // Da es weich läuft, verzichten wir beim Ziehen auf komplettes Neu-Zeichnen, nur nach dem Loslassen.
                         };
                         
                         const stop = async () => {
                             document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
-                            let currentY = parseFloat(el.style.top);
-                            let snappedY = Math.round(currentY / LEVEL_HEIGHT) * LEVEL_HEIGHT;
+                            let snappedY = Math.round(parseFloat(el.style.top) / LEVEL_HEIGHT) * LEVEL_HEIGHT;
                             el.style.top = snappedY + 'px';
 
                             await fetch('/api/tree', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ person_id: p.id, x_pos: parseFloat(el.style.left), y_pos: snappedY }) });
-                            loadTree(); // Refresh lists and background
+                            loadTree(); 
                         };
                         document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop);
                     });
@@ -384,7 +349,6 @@
                 }
             });
 
-            // Initial zentrieren, wenn das erste Mal geladen wird und noch kein Pan gesetzt ist
             if (panX === 0 && panY === 0 && placedNodes.length > 0) centerTreeView();
 
             drawDynamicLevels(minY, maxY);
@@ -395,29 +359,22 @@
         function populateTreeSidebar(treePersons) {
             const personsList = document.getElementById('tree-sidebar-persons');
             const connsList = document.getElementById('tree-sidebar-conns');
-            
             personsList.innerHTML = ''; connsList.innerHTML = '';
 
-            // Sidebar Personen
             treePersons.forEach(p => {
                 const isPlaced = p.x !== null;
                 const li = document.createElement('li');
                 li.className = `p-2 rounded text-xs cursor-pointer flex justify-between items-center transition-colors ${isPlaced ? 'hover:bg-blue-50 text-slate-800' : 'text-slate-400 border border-dashed border-slate-200'}`;
                 li.innerHTML = `<span>${p.first_name} ${p.last_name}</span> ${isPlaced ? '<i class="fa-solid fa-eye text-blue-400"></i>' : '<span>(Unplatziert)</span>'}`;
-                
                 li.onclick = async () => {
                     if(isPlaced) {
-                        // Zentriere auf die Person
                         const viewport = document.getElementById('tree-viewport');
-                        panX = (viewport.offsetWidth / 2) - p.x;
-                        panY = (viewport.offsetHeight / 2) - p.y;
+                        panX = (viewport.offsetWidth / 2) - p.x; panY = (viewport.offsetHeight / 2) - p.y;
                         applyTransform();
                     } else {
-                        // Platziere die neue Person genau in der Mitte der aktuellen Sicht!
                         const viewport = document.getElementById('tree-viewport');
                         const newX = -panX + (viewport.offsetWidth / 2);
                         const newY = Math.round((-panY + (viewport.offsetHeight / 2)) / LEVEL_HEIGHT) * LEVEL_HEIGHT;
-                        
                         await fetch('/api/tree', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ person_id: p.id, x_pos: newX, y_pos: newY }) });
                         loadTree();
                     }
@@ -425,48 +382,30 @@
                 personsList.appendChild(li);
             });
 
-            // Sidebar Verbindungen
-            const displayConns = new Set();
             connections.forEach(c => {
-                const hash = [c.from_person_id, c.to_person_id].sort().join('-');
-                if(c.type !== 'child' && displayConns.has(hash)) return;
-                if(c.type !== 'child') displayConns.add(hash);
-
                 const p1 = persons.find(p => p.id === c.from_person_id);
                 const p2 = persons.find(p => p.id === c.to_person_id);
                 if(!p1 || !p2) return;
 
                 let typeLabel = "Elternteil von";
-                if(c.type === 'spouse') typeLabel = "Ehe mit";
+                if(c.type === 'spouse') typeLabel = "verheiratet mit";
                 if(c.type === 'sibling') typeLabel = "Geschwister mit";
                 if(c.type === 'aunt_uncle') typeLabel = "Tante/Onkel von";
 
                 const li = document.createElement('li');
                 li.className = "p-2 hover:bg-red-50 rounded text-xs flex justify-between items-center group transition-colors border-b border-slate-100";
-                li.innerHTML = `
-                    <div class="truncate pr-2"><b>${p1.first_name}</b> <span class="text-slate-400">${typeLabel}</span> <b>${p2.first_name}</b></div>
-                    <button class="text-red-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" onclick="deleteConnection(${c.id})"><i class="fa-solid fa-trash"></i></button>
-                `;
+                li.innerHTML = `<div class="truncate pr-2"><b>${p1.first_name}</b> <span class="text-slate-400">${typeLabel}</span> <b>${p2.first_name}</b></div><button class="text-red-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" onclick="deleteConnection(${c.id})"><i class="fa-solid fa-trash"></i></button>`;
                 connsList.appendChild(li);
             });
         }
 
-        async function removeNodeFromTree(personId, e) {
-            e.stopPropagation(); // Verhindert Panning/Dragging
-            await fetch(`/api/tree?id=${personId}`, { method: 'DELETE' });
-            loadTree();
-        }
-
-        async function deleteConnection(connId) {
-            await fetch(`/api/connections?id=${connId}`, { method: 'DELETE' });
-            loadTree();
-        }
+        async function removeNodeFromTree(personId, e) { e.stopPropagation(); await fetch(`/api/tree?id=${personId}`, { method: 'DELETE' }); loadTree(); }
+        async function deleteConnection(connId) { await fetch(`/api/connections?id=${connId}`, { method: 'DELETE' }); loadTree(); }
 
         function drawDynamicLevels(minY, maxY) {
             const bgLayer = document.getElementById('tree-background-layer'); bgLayer.innerHTML = '';
             if (minY === Infinity) return;
-            let startLevel = Math.floor(minY / LEVEL_HEIGHT) - 2; let endLevel = Math.ceil(maxY / LEVEL_HEIGHT) + 2;
-            for (let i = startLevel; i <= endLevel; i++) {
+            for (let i = Math.floor(minY / LEVEL_HEIGHT) - 2; i <= Math.ceil(maxY / LEVEL_HEIGHT) + 2; i++) {
                 const line = document.createElement('div'); line.className = 'tree-level-bg'; line.style.top = (i * LEVEL_HEIGHT - 20) + 'px'; bgLayer.appendChild(line);
             }
         }
@@ -475,17 +414,14 @@
             const from = document.getElementById('conn-from').value; const to = document.getElementById('conn-to').value; const type = document.getElementById('conn-type').value;
             if(!from || !to || from === to) return alert("Ungültige Personenauswahl.");
 
-            // Intelligentes Positionieren, falls Knoten fehlen
             const resTree = await fetch('/api/tree'); const currentNodes = await resTree.json();
-            const fromNode = currentNodes.find(n => n.person_id == from);
-            const toNode = currentNodes.find(n => n.person_id == to);
+            const fromNode = currentNodes.find(n => n.person_id == from); const toNode = currentNodes.find(n => n.person_id == to);
 
             const viewport = document.getElementById('tree-viewport');
             const viewCenterX = -panX + (viewport.offsetWidth / 2);
             const viewCenterY = Math.round((-panY + (viewport.offsetHeight / 2)) / LEVEL_HEIGHT) * LEVEL_HEIGHT;
 
             if (type === 'spouse' && fromNode && toNode) {
-                // Morphen
                 await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: to, x_pos: fromNode.x_pos + 180, y_pos: fromNode.y_pos }) });
             } 
             else if (!toNode && fromNode) {
@@ -509,6 +445,83 @@
             loadTree();
         }
 
+        // --- DER MAGISCHE AUTO-LAYOUT ALGORITHMUS ---
+        async function autoLayoutTree() {
+            if(!confirm("Achtung: Dies überschreibt alle manuellen Positionen und ordnet den Stammbaum komplett neu an. Fortfahren?")) return;
+            
+            const btn = event.currentTarget;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Ordne an...';
+
+            // 1. Tiefen (Generationen) berechnen (BFS)
+            let depths = {};
+            persons.forEach(p => depths[p.id] = 0);
+
+            // Entspanne den Graph 10-mal um alle Tiefen sauber durchzureichen
+            for(let i=0; i<10; i++) {
+                connections.forEach(c => {
+                    if(c.type === 'parent_child') {
+                        depths[c.to_person_id] = Math.max(depths[c.to_person_id], depths[c.from_person_id] + 1);
+                    }
+                    if(c.type === 'spouse') {
+                        let maxD = Math.max(depths[c.from_person_id], depths[c.to_person_id]);
+                        depths[c.from_person_id] = maxD; depths[c.to_person_id] = maxD;
+                    }
+                });
+            }
+
+            // 2. Nach Ebenen gruppieren
+            let levelGroups = {};
+            persons.forEach(p => {
+                let d = depths[p.id];
+                if(!levelGroups[d]) levelGroups[d] = [];
+                levelGroups[d].push(p.id);
+            });
+
+            const promises = [];
+            let startY = 1500;
+            let startX = 1500;
+
+            // 3. Personen aufbauen
+            for (let depth in levelGroups) {
+                let currentX = startX;
+                let levelPersons = levelGroups[depth];
+                
+                let placedInLevel = new Set();
+                let ordered = [];
+                
+                // Halte Ehepartner immer zusammen
+                levelPersons.forEach(pid => {
+                    if(!placedInLevel.has(pid)) {
+                        ordered.push(pid);
+                        placedInLevel.add(pid);
+                        let spouseConn = connections.find(c => c.type === 'spouse' && (c.from_person_id === pid || c.to_person_id === pid));
+                        if(spouseConn) {
+                            let spId = spouseConn.from_person_id === pid ? spouseConn.to_person_id : spouseConn.from_person_id;
+                            if(!placedInLevel.has(spId) && levelGroups[depth].includes(spId)) {
+                                ordered.push(spId);
+                                placedInLevel.add(spId);
+                            }
+                        }
+                    }
+                });
+
+                // In Datenbank hochladen
+                ordered.forEach(pid => {
+                    promises.push(fetch('/api/tree', {
+                        method: 'POST', 
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ person_id: pid, x_pos: currentX, y_pos: startY + (parseInt(depth) * LEVEL_HEIGHT) })
+                    }));
+                    currentX += 220; // X-Abstand zwischen Familien
+                });
+            }
+
+            await Promise.all(promises);
+            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Auto-Layout (Magie)';
+            loadTree();
+        }
+
+        // --- ZEICHEN ALGORITHMUS ---
         function appendTooltip(element, text) {
             const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
             title.textContent = "Beziehung: " + text; element.appendChild(title);
@@ -516,26 +529,28 @@
 
         function drawTreeLines() {
             const svg = document.getElementById('tree-svg'); svg.innerHTML = '';
+            
             const parentMap = {}; const spousesMap = {}; 
             connections.forEach(c => {
-                if (c.type === 'child') { if (!parentMap[c.from_person_id]) parentMap[c.from_person_id] = new Set(); parentMap[c.from_person_id].add(c.to_person_id); }
-                if (c.type === 'spouse') { if (!spousesMap[c.from_person_id]) spousesMap[c.from_person_id] = new Set(); spousesMap[c.from_person_id].add(c.to_person_id); }
+                if (c.type === 'parent_child') { if (!parentMap[c.to_person_id]) parentMap[c.to_person_id] = new Set(); parentMap[c.to_person_id].add(c.from_person_id); }
+                if (c.type === 'spouse') {
+                    if (!spousesMap[c.from_person_id]) spousesMap[c.from_person_id] = new Set(); spousesMap[c.from_person_id].add(c.to_person_id);
+                    if (!spousesMap[c.to_person_id]) spousesMap[c.to_person_id] = new Set(); spousesMap[c.to_person_id].add(c.from_person_id);
+                }
             });
 
-            const drawnPairs = new Set(); const handledParentLines = new Set();
+            const handledParentLines = new Set();
 
             connections.forEach(c => {
-                const hash = [c.from_person_id, c.to_person_id].sort().join('-');
-                if (c.type !== 'child' && drawnPairs.has(hash)) return; 
-                if (c.type !== 'child') drawnPairs.add(hash);
-
-                const p1 = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`); const p2 = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
+                const p1 = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`); 
+                const p2 = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
                 if(p1 && p2) {
                     const x1 = p1.offsetLeft + p1.offsetWidth/2; const y1 = p1.offsetTop + p1.offsetHeight/2;
                     const x2 = p2.offsetLeft + p2.offsetWidth/2; const y2 = p2.offsetTop + p2.offsetHeight/2;
                     let el;
 
                     if (c.type === 'spouse') {
+                        // Da nur eine Row gespeichert wird, zeichnen wir sie genau hier
                         el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                         el.setAttribute('x1', x1); el.setAttribute('y1', y1); el.setAttribute('x2', x2); el.setAttribute('y2', y2);
                         el.setAttribute('stroke', '#ec4899'); el.setAttribute('stroke-dasharray', '8 4'); appendTooltip(el, 'Ehepartner');
@@ -550,17 +565,22 @@
                         el.setAttribute('x1', x1); el.setAttribute('y1', y1); el.setAttribute('x2', x2); el.setAttribute('y2', y2);
                         el.setAttribute('stroke', '#8b5cf6'); el.setAttribute('stroke-dasharray', '4 6'); appendTooltip(el, 'Tante / Onkel');
                     }
-                    else if (c.type === 'child') {
-                        const childId = c.from_person_id; const parentId = c.to_person_id; const relHash = `${parentId}-${childId}`;
+                    else if (c.type === 'parent_child') {
+                        const parentId = c.from_person_id; const childId = c.to_person_id; 
+                        const relHash = `${parentId}-${childId}`;
                         if (handledParentLines.has(relHash)) return;
+
                         const parents = Array.from(parentMap[childId] || []);
                         let jointDrawn = false;
 
+                        // GEMEINSAME KINDER-LINIE
                         if (parents.length >= 2) {
                             for (let i = 0; i < parents.length; i++) {
                                 for (let j = i + 1; j < parents.length; j++) {
                                     if (spousesMap[parents[i]] && spousesMap[parents[i]].has(parents[j])) {
-                                        const domP1 = document.querySelector(`.tree-node[data-id="${parents[i]}"]`); const domP2 = document.querySelector(`.tree-node[data-id="${parents[j]}"]`); const domC = document.querySelector(`.tree-node[data-id="${childId}"]`);
+                                        const domP1 = document.querySelector(`.tree-node[data-id="${parents[i]}"]`); 
+                                        const domP2 = document.querySelector(`.tree-node[data-id="${parents[j]}"]`); 
+                                        const domC = document.querySelector(`.tree-node[data-id="${childId}"]`);
                                         if (domP1 && domP2 && domC) {
                                             const jointX = (domP1.offsetLeft + domP1.offsetWidth/2 + domP2.offsetLeft + domP2.offsetWidth/2) / 2;
                                             const jointY = domP1.offsetTop + domP1.offsetHeight/2; 
@@ -576,9 +596,10 @@
                             }
                         }
 
+                        // STANDARD-LINIE FÜR EINZELNE ELTERNTEILE
                         if (!jointDrawn) {
-                            const px = p2.offsetLeft + p2.offsetWidth/2; const py = p2.offsetTop + p2.offsetHeight;
-                            const cx = p1.offsetLeft + p1.offsetWidth/2; const cy = p1.offsetTop;
+                            const px = p1.offsetLeft + p1.offsetWidth/2; const py = p1.offsetTop + p1.offsetHeight;
+                            const cx = p2.offsetLeft + p2.offsetWidth/2; const cy = p2.offsetTop;
                             el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                             const d = `M ${px} ${py} C ${px} ${py + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
                             el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569'); appendTooltip(el, 'Elternteil -> Kind');
