@@ -446,80 +446,68 @@
         }
 
         // --- DER MAGISCHE AUTO-LAYOUT ALGORITHMUS ---
-        async function autoLayoutTree() {
-            if(!confirm("Achtung: Dies überschreibt alle manuellen Positionen und ordnet den Stammbaum komplett neu an. Fortfahren?")) return;
-            
-            const btn = event.currentTarget;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Ordne an...';
+        /* Ersetze die autoLayoutTree Funktion in deinem script-Tag durch diese optimierte Version */
 
-            // 1. Tiefen (Generationen) berechnen (BFS)
-            let depths = {};
-            persons.forEach(p => depths[p.id] = 0);
+async function autoLayoutTree() {
+    const btn = event.currentTarget;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Berechne Layout...';
 
-            // Entspanne den Graph 10-mal um alle Tiefen sauber durchzureichen
-            for(let i=0; i<10; i++) {
-                connections.forEach(c => {
-                    if(c.type === 'parent_child') {
-                        depths[c.to_person_id] = Math.max(depths[c.to_person_id], depths[c.from_person_id] + 1);
-                    }
-                    if(c.type === 'spouse') {
-                        let maxD = Math.max(depths[c.from_person_id], depths[c.to_person_id]);
-                        depths[c.from_person_id] = maxD; depths[c.to_person_id] = maxD;
-                    }
-                });
+    // 1. Initiales Layout (Generationen-Ebenen)
+    let depths = {};
+    persons.forEach(p => depths[p.id] = 0);
+    
+    // Iterativ Tiefen berechnen (mehrfaches Durchlaufen löst Zyklen/Referenzfehler)
+    for(let i=0; i<20; i++) {
+        connections.forEach(c => {
+            if(c.type === 'parent_child') depths[c.to_person_id] = Math.max(depths[c.to_person_id], depths[c.from_person_id] + 1);
+        });
+    }
+
+    // 2. Platzierung & "Force" Simulation
+    let positions = {};
+    let keys = Object.keys(depths);
+    
+    // Initiale Position auf einem Grid
+    keys.forEach(id => {
+        let d = depths[id];
+        positions[id] = { x: (id % 5) * 220, y: d * LEVEL_HEIGHT };
+    });
+
+    // 3. Iterative Korrektur (50 Durchläufe für das "Einpendeln")
+    for (let iter = 0; iter < 50; iter++) {
+        // Ehepartner zusammenziehen
+        connections.filter(c => c.type === 'spouse').forEach(c => {
+            let p1 = positions[c.from_person_id], p2 = positions[c.to_person_id];
+            let dx = (p2.x - p1.x - 180) * 0.1;
+            p1.x += dx; p2.x -= dx;
+        });
+        
+        // Überlappung vermeiden (Abstoßung)
+        for(let i=0; i<keys.length; i++) {
+            for(let j=i+1; j<keys.length; j++) {
+                let p1 = positions[keys[i]], p2 = positions[keys[j]];
+                let dist = Math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2);
+                if(dist < 150) {
+                    let push = (150 - dist) * 0.05;
+                    p1.x -= push; p2.x += push;
+                }
             }
-
-            // 2. Nach Ebenen gruppieren
-            let levelGroups = {};
-            persons.forEach(p => {
-                let d = depths[p.id];
-                if(!levelGroups[d]) levelGroups[d] = [];
-                levelGroups[d].push(p.id);
-            });
-
-            const promises = [];
-            let startY = 1500;
-            let startX = 1500;
-
-            // 3. Personen aufbauen
-            for (let depth in levelGroups) {
-                let currentX = startX;
-                let levelPersons = levelGroups[depth];
-                
-                let placedInLevel = new Set();
-                let ordered = [];
-                
-                // Halte Ehepartner immer zusammen
-                levelPersons.forEach(pid => {
-                    if(!placedInLevel.has(pid)) {
-                        ordered.push(pid);
-                        placedInLevel.add(pid);
-                        let spouseConn = connections.find(c => c.type === 'spouse' && (c.from_person_id === pid || c.to_person_id === pid));
-                        if(spouseConn) {
-                            let spId = spouseConn.from_person_id === pid ? spouseConn.to_person_id : spouseConn.from_person_id;
-                            if(!placedInLevel.has(spId) && levelGroups[depth].includes(spId)) {
-                                ordered.push(spId);
-                                placedInLevel.add(spId);
-                            }
-                        }
-                    }
-                });
-
-                // In Datenbank hochladen
-                ordered.forEach(pid => {
-                    promises.push(fetch('/api/tree', {
-                        method: 'POST', 
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ person_id: pid, x_pos: currentX, y_pos: startY + (parseInt(depth) * LEVEL_HEIGHT) })
-                    }));
-                    currentX += 220; // X-Abstand zwischen Familien
-                });
-            }
-
-            await Promise.all(promises);
-            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Auto-Layout (Magie)';
-            loadTree();
         }
+    }
+
+    // 4. In Datenbank speichern
+    const promises = Object.entries(positions).map(([id, pos]) => 
+        fetch('/api/tree', {
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ person_id: parseInt(id), x_pos: 1500 + pos.x, y_pos: 1500 + pos.y })
+        })
+    );
+
+    await Promise.all(promises);
+    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Auto-Layout (Magie)';
+    loadTree(); // Hier drin wird drawTreeLines() nach dem DOM-Update aufgerufen
+}
 
         // --- ZEICHEN ALGORITHMUS ---
         function appendTooltip(element, text) {
