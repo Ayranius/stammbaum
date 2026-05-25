@@ -11,7 +11,7 @@ export async function onRequest(context) {
         return new Response(object.body, { headers: { 'Content-Type': object.httpMetadata?.contentType || 'image/jpeg' } });
     }
 
-    // --- 2. PERSONEN ---
+    // --- 2. PERSONEN (Inkl. Sterbedatum) ---
     if (path.startsWith('persons')) {
         if (request.method === 'GET') {
             const { results } = await env.DB.prepare("SELECT * FROM persons ORDER BY last_name ASC, first_name ASC").all();
@@ -19,14 +19,14 @@ export async function onRequest(context) {
         }
         if (request.method === 'POST') {
             const data = await request.json();
-            await env.DB.prepare("INSERT INTO persons (first_name, last_name, role, birth_date, gender) VALUES (?, ?, ?, ?, ?)")
-                .bind(data.first_name, data.last_name, data.role, data.birth_date, data.gender).run();
+            await env.DB.prepare("INSERT INTO persons (first_name, last_name, role, birth_date, death_date, gender) VALUES (?, ?, ?, ?, ?, ?)")
+                .bind(data.first_name, data.last_name, data.role, data.birth_date, data.death_date, data.gender).run();
             return new Response(JSON.stringify({ success: true }));
         }
         if (request.method === 'PUT') {
             const data = await request.json();
-            await env.DB.prepare("UPDATE persons SET first_name=?, last_name=?, role=?, birth_date=?, gender=? WHERE id=?")
-                .bind(data.first_name, data.last_name, data.role, data.birth_date, data.gender, data.id).run();
+            await env.DB.prepare("UPDATE persons SET first_name=?, last_name=?, role=?, birth_date=?, death_date=?, gender=? WHERE id=?")
+                .bind(data.first_name, data.last_name, data.role, data.birth_date, data.death_date, data.gender, data.id).run();
             return new Response(JSON.stringify({ success: true }));
         }
         if (request.method === 'DELETE') {
@@ -68,7 +68,7 @@ export async function onRequest(context) {
         }
     }
 
-    // --- 4. BEZIEHUNGEN (Mit Autopopulation für Tanten/Onkel) ---
+    // --- 4. BEZIEHUNGEN ---
     if (path.startsWith('connections')) {
         if (request.method === 'GET') {
             const { results } = await env.DB.prepare("SELECT * FROM connections").all();
@@ -77,7 +77,6 @@ export async function onRequest(context) {
         if (request.method === 'POST') {
             const { from_person_id, to_person_id, type } = await request.json();
             
-            // Verhindern von exakten Duplikaten in beide Richtungen
             await env.DB.prepare("DELETE FROM connections WHERE (from_person_id=? AND to_person_id=?) OR (from_person_id=? AND to_person_id=?)")
                 .bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
 
@@ -87,7 +86,6 @@ export async function onRequest(context) {
             else if (type === 'parent_child') {
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent'), (?, ?, 'child')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
                 
-                // AUTOMATIK: Geschwister des Elternteils (from) werden Tante/Onkel des Kindes (to)
                 const siblings = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'sibling'").bind(from_person_id).all();
                 for (let sib of siblings.results) {
                     await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(sib.to_person_id, to_person_id, to_person_id, sib.to_person_id).run();
@@ -96,12 +94,10 @@ export async function onRequest(context) {
             else if (type === 'sibling') {
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'sibling'), (?, ?, 'sibling')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
                 
-                // AUTOMATIK: Kinder von Geschwister 1 (from) -> Geschwister 2 (to) wird Onkel/Tante
                 const children1 = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'parent'").bind(from_person_id).all();
                 for (let child of children1.results) {
                     await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(to_person_id, child.to_person_id, child.to_person_id, to_person_id).run();
                 }
-                // AUTOMATIK: Kinder von Geschwister 2 (to) -> Geschwister 1 (from) wird Onkel/Tante
                 const children2 = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'parent'").bind(to_person_id).all();
                 for (let child of children2.results) {
                     await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(from_person_id, child.to_person_id, child.to_person_id, from_person_id).run();
