@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Familien Archiv & Stammbaum</title>
+    <style>
+        :root { --primary: #2b6cb0; --bg: #f7fafc; --panel: #ffffff; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #1a202c; }
+        .container { max-width: 1000px; margin: auto; }
+        
+        /* Navigation Tabs */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { padding: 10px 20px; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .tab-content { display: none; background: var(--panel); padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .tab-content.active { display: block; }
+
+        /* Forms & Inputs */
+        input, select, button { padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #cbd5e0; width: 100%; box-sizing: border-box; }
+        button.action-btn { background: var(--primary); color: white; cursor: pointer; border: none; }
+        button.action-btn:hover { background: #2c5282; }
+
+        /* Photo Gallery & Tagging */
+        .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .photo-card img { width: 100%; border-radius: 8px; cursor: pointer; object-fit: cover; height: 200px; }
+        
+        /* Fullscreen Photo Tagger */
+        #photo-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index: 100; padding: 20px; box-sizing: border-box; flex-direction: column; align-items: center; }
+        .image-container { position: relative; max-width: 100%; max-height: 80vh; display: inline-block; }
+        .image-container img { max-height: 80vh; max-width: 100%; display: block; }
+        .tag-marker { position: absolute; width: 20px; height: 20px; background: red; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid white; cursor: pointer; }
+        .tag-label { position: absolute; background: white; padding: 2px 6px; border-radius: 4px; font-size: 12px; transform: translate(-50%, 15px); white-space: nowrap; font-weight: bold;}
+        
+        /* Popup for new tag */
+        #tag-popup { display: none; position: absolute; background: white; padding: 10px; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 101; }
+
+        /* Drag & Drop Tree */
+        #tree-canvas { width: 100%; height: 600px; background: #edf2f7; position: relative; overflow: auto; border-radius: 8px; border: 2px dashed #cbd5e0;}
+        .tree-node { position: absolute; background: white; padding: 10px 15px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: grab; user-select: none; border: 2px solid var(--primary); font-weight: bold;}
+        .tree-node:active { cursor: grabbing; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Familien Archiv</h1>
+    
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('photos')">Fotos</button>
+        <button class="tab-btn" onclick="switchTab('persons')">Personen</button>
+        <button class="tab-btn" onclick="switchTab('tree')">Stammbaum</button>
+    </div>
+
+    <div id="tab-photos" class="tab-content active">
+        <h3>Neues Foto hochladen</h3>
+        <input type="file" id="fileInput" accept="image/*">
+        <input type="date" id="dateInput">
+        <input type="text" id="descInput" placeholder="Beschreibung / Ereignis">
+        <button class="action-btn" onclick="uploadPhoto()">Foto hochladen</button>
+        
+        <hr style="margin: 20px 0;">
+        <h3>Galerie (Klicken zum Markieren)</h3>
+        <div class="gallery" id="gallery"></div>
+    </div>
+
+    <div id="tab-persons" class="tab-content">
+        <h3>Neue Person anlegen</h3>
+        <input type="text" id="firstName" placeholder="Vorname">
+        <input type="text" id="lastName" placeholder="Nachname">
+        <input type="text" id="role" placeholder="Rolle (z.B. Vater, Tante, Kind)">
+        <input type="date" id="birthDate">
+        <button class="action-btn" onclick="createPerson()">Person speichern</button>
+        
+        <hr style="margin: 20px 0;">
+        <h3>Gespeicherte Personen</h3>
+        <ul id="person-list"></ul>
+    </div>
+
+    <div id="tab-tree" class="tab-content">
+        <h3>Stammbaum (Drag & Drop)</h3>
+        <p>Ziehe die Personen an die richtige Stelle. Die Position wird automatisch gespeichert.</p>
+        <div id="tree-canvas"></div>
+    </div>
+</div>
+
+<div id="photo-modal">
+    <button onclick="closeModal()" style="width: auto; background: white; color: black; margin-bottom: 10px;">Zurück</button>
+    <div class="image-container" id="tag-container">
+        <img id="modal-img" onclick="handleImageClick(event)">
+        </div>
+</div>
+
+<div id="tag-popup">
+    <select id="person-select"></select>
+    <button class="action-btn" onclick="saveTag()">Markieren</button>
+    <button onclick="closeTagPopup()">Abbrechen</button>
+</div>
+
+<script>
+    let currentPersons = [];
+    let activePhotoId = null;
+    let pendingTagCoords = null;
+
+    // Initialization
+    document.addEventListener('DOMContentLoaded', () => {
+        loadPersons();
+        loadPhotos();
+    });
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('tab-' + tabId).classList.add('active');
+        event.target.classList.add('active');
+        
+        if(tabId === 'tree') loadTree();
+    }
+
+    // --- PERSONEN LOGIK ---
+    async function loadPersons() {
+        const res = await fetch('/api/persons');
+        currentPersons = await res.json();
+        const list = document.getElementById('person-list');
+        const select = document.getElementById('person-select');
+        
+        list.innerHTML = '';
+        select.innerHTML = '<option value="">Person wählen...</option>';
+        
+        currentPersons.forEach(p => {
+            list.innerHTML += `<li><b>${p.first_name} ${p.last_name}</b> (${p.role}) - *${p.birth_date}</li>`;
+            select.innerHTML += `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`;
+        });
+    }
+
+    async function createPerson() {
+        await fetch('/api/persons', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                first_name: document.getElementById('firstName').value,
+                last_name: document.getElementById('lastName').value,
+                role: document.getElementById('role').value,
+                birth_date: document.getElementById('birthDate').value
+            })
+        });
+        loadPersons();
+        document.querySelectorAll('#tab-persons input').forEach(i => i.value = '');
+    }
+
+    // --- FOTO LOGIK ---
+    async function uploadPhoto() {
+        const file = document.getElementById('fileInput').files[0];
+        if(!file) return alert("Foto fehlt!");
+        
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('description', document.getElementById('descInput').value);
+        fd.append('date_taken', document.getElementById('dateInput').value);
+
+        await fetch('/api/photos', { method: 'POST', body: fd });
+        loadPhotos();
+    }
+
+    async function loadPhotos() {
+        const res = await fetch('/api/photos');
+        const photos = await res.json();
+        const gallery = document.getElementById('gallery');
+        gallery.innerHTML = '';
+        
+        photos.forEach(photo => {
+            gallery.innerHTML += `
+                <div class="photo-card" onclick="openPhotoModal(${photo.id}, '${photo.url}')">
+                    <img src="${photo.url}">
+                    <p><b>${photo.date_taken || 'Kein Datum'}</b><br>${photo.description}</p>
+                </div>
+            `;
+        });
+    }
+
+    // --- TAGGING LOGIK ---
+    async function openPhotoModal(photoId, url) {
+        activePhotoId = photoId;
+        document.getElementById('modal-img').src = url;
+        document.getElementById('photo-modal').style.display = 'flex';
+        await renderTags();
+    }
+
+    function closeModal() {
+        document.getElementById('photo-modal').style.display = 'none';
+        closeTagPopup();
+    }
+
+    function handleImageClick(e) {
+        const img = e.target;
+        const rect = img.getBoundingClientRect();
+        
+        // Berechne Prozentwerte (damit die Marker responsiv bleiben!)
+        const x_percent = ((e.clientX - rect.left) / rect.width) * 100;
+        const y_percent = ((e.clientY - rect.top) / rect.height) * 100;
+        
+        pendingTagCoords = { x: x_percent, y: y_percent };
+        
+        const popup = document.getElementById('tag-popup');
+        popup.style.display = 'block';
+        popup.style.left = e.clientX + 'px';
+        popup.style.top = e.clientY + 'px';
+    }
+
+    function closeTagPopup() {
+        document.getElementById('tag-popup').style.display = 'none';
+        pendingTagCoords = null;
+    }
+
+    async function saveTag() {
+        const personId = document.getElementById('person-select').value;
+        if(!personId || !pendingTagCoords) return;
+
+        await fetch('/api/tags', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                photo_id: activePhotoId,
+                person_id: personId,
+                x_percent: pendingTagCoords.x,
+                y_percent: pendingTagCoords.y
+            })
+        });
+        
+        closeTagPopup();
+        renderTags();
+    }
+
+    async function renderTags() {
+        // Entferne alte Marker
+        document.querySelectorAll('.tag-marker, .tag-label').forEach(e => e.remove());
+        
+        const res = await fetch(`/api/tags?photoId=${activePhotoId}`);
+        const tags = await res.json();
+        
+        const container = document.getElementById('tag-container');
+        tags.forEach(tag => {
+            const marker = document.createElement('div');
+            marker.className = 'tag-marker';
+            marker.style.left = tag.x_percent + '%';
+            marker.style.top = tag.y_percent + '%';
+            
+            const label = document.createElement('div');
+            label.className = 'tag-label';
+            label.style.left = tag.x_percent + '%';
+            label.style.top = tag.y_percent + '%';
+            label.innerText = tag.first_name;
+
+            container.appendChild(marker);
+            container.appendChild(label);
+        });
+    }
+
+    // --- STAMMBAUM DRAG & DROP LOGIK ---
+    let draggedNode = null;
+    
+    async function loadTree() {
+        const res = await fetch('/api/tree');
+        const nodes = await res.json();
+        const canvas = document.getElementById('tree-canvas');
+        canvas.innerHTML = '';
+
+        nodes.forEach((n, index) => {
+            const el = document.createElement('div');
+            el.className = 'tree-node';
+            el.innerText = n.first_name + ' ' + n.last_name;
+            el.dataset.id = n.id;
+            
+            // Wenn keine Position vorhanden, setze sie zufällig nebeneinander
+            el.style.left = (n.x_pos || (index * 150 + 20)) + 'px';
+            el.style.top = (n.y_pos || 20) + 'px';
+            
+            el.addEventListener('mousedown', startDrag);
+            canvas.appendChild(el);
+        });
+    }
+
+    function startDrag(e) {
+        draggedNode = e.target;
+        
+        // Berechne den Offset der Maus im Element
+        const rect = draggedNode.getBoundingClientRect();
+        const canvasRect = document.getElementById('tree-canvas').getBoundingClientRect();
+        
+        let offsetX = e.clientX - rect.left;
+        let offsetY = e.clientY - rect.top;
+
+        function doDrag(ev) {
+            if(!draggedNode) return;
+            // Neue Position innerhalb des Canvas
+            let x = ev.clientX - canvasRect.left - offsetX;
+            let y = ev.clientY - canvasRect.top - offsetY;
+            
+            draggedNode.style.left = x + 'px';
+            draggedNode.style.top = y + 'px';
+        }
+
+        async function stopDrag() {
+            document.removeEventListener('mousemove', doDrag);
+            document.removeEventListener('mouseup', stopDrag);
+            
+            if(draggedNode) {
+                // Position in D1 Datenbank speichern
+                await fetch('/api/tree', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        person_id: draggedNode.dataset.id,
+                        x_pos: parseFloat(draggedNode.style.left),
+                        y_pos: parseFloat(draggedNode.style.top)
+                    })
+                });
+                draggedNode = null;
+            }
+        }
+
+        document.addEventListener('mousemove', doDrag);
+        document.addEventListener('mouseup', stopDrag);
+    }
+</script>
+
+</body>
+</html>
