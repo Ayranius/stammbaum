@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Familienarchiv Haverkock&Hünteler</title>
+    <title>Archiv Haverkock und Hünteler</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -19,19 +19,29 @@
         .tag-delete-btn { position: absolute; top: -10px; right: -25px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 10px; cursor: pointer; display: none; align-items: center; justify-content: center; }
         .tag-marker:hover .tag-delete-btn { display: flex; }
 
-        #tree-viewport { position: relative; width: 100%; height: 750px; overflow: auto; border: 1px solid #cbd5e1; border-radius: 0 0 12px 12px; background-color: #f8fafc; }
-        #tree-canvas { position: absolute; top: 0; left: 0; width: 4000px; height: 4000px; }
-        .tree-level-bg { position: absolute; width: 100%; height: 1px; border-top: 2px dashed #cbd5e1; }
+        /* Infinite Canvas CSS */
+        #tree-viewport { position: relative; width: 100%; height: 750px; overflow: hidden; background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px); background-size: 25px 25px; background-color: #f8fafc; cursor: grab; border-radius: 0.75rem; border: 1px solid #e2e8f0; }
+        #tree-viewport:active { cursor: grabbing; }
+        #tree-canvas { position: absolute; top: 0; left: 0; width: 0; height: 0; }
+        
+        .tree-level-bg { position: absolute; height: 1px; border-top: 2px dashed #cbd5e1; width: 20000px; left: -10000px; pointer-events: none; }
+        
         .tree-node { position: absolute; background: white; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: grab; user-select: none; z-index: 20; min-width: 140px; text-align: center; }
         .tree-node:active { cursor: grabbing; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); transform: scale(1.02); }
-        .gender-m { border-color: #3b82f6; } 
-        .gender-f { border-color: #ec4899; } 
-        .gender-d { border-color: #10b981; }
+        .gender-m { border-color: #3b82f6; } .gender-f { border-color: #ec4899; } .gender-d { border-color: #10b981; }
+        
+        .node-delete-btn { position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 11px; cursor: pointer; opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .tree-node:hover .node-delete-btn { opacity: 1; }
         
         .tree-line { cursor: help; transition: stroke-width 0.2s; pointer-events: stroke; }
-        .tree-line:hover { filter: drop-shadow(0 0 3px rgba(0,0,0,0.4)); }
-
+        .tree-line:hover { filter: drop-shadow(0 0 3px rgba(0,0,0,0.4)); stroke-width: 6; }
         .edit-mode-row { background-color: #eff6ff !important; border-left: 4px solid #3b82f6; transition: all 0.2s; }
+        
+        /* Custom Scrollbar for Sidebar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
@@ -40,8 +50,8 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <i class="fa-solid fa-seedling text-blue-600 text-2xl mr-3"></i>
-                    <span class="font-bold text-xl text-slate-900">Archiv Haverkock</span>
+                    <i class="fa-solid fa-tree text-blue-600 text-2xl mr-3"></i>
+                    <span class="font-bold text-xl text-slate-900">Archiv Haverkock und Hünteler</span>
                 </div>
                 <div class="flex space-x-1 sm:space-x-4 items-center overflow-x-auto">
                     <button onclick="switchTab('gallery')" id="nav-gallery" class="nav-btn px-3 py-2 rounded-md text-sm font-medium bg-blue-50 text-blue-700 transition-colors"><i class="fa-solid fa-images mr-2"></i>Mediathek</button>
@@ -103,7 +113,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2">
                     <h3 class="text-lg font-bold text-slate-900 mb-4">Datenbank</h3>
                     <div class="overflow-x-auto">
@@ -124,7 +133,7 @@
         </div>
 
         <div id="tab-tree" class="tab-content">
-            <div class="bg-white p-4 rounded-t-xl border border-b-0 border-slate-200 flex flex-wrap gap-4 items-end justify-between">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-wrap gap-4 items-end justify-between mb-4 shadow-sm">
                 <div class="flex gap-2 items-end flex-wrap">
                     <div><label class="block text-xs font-medium text-slate-500 mb-1">Person 1</label><select id="conn-from" class="px-3 py-2 border border-slate-300 rounded-md text-sm w-48 bg-white"></select></div>
                     <div>
@@ -139,17 +148,26 @@
                     <div><label class="block text-xs font-medium text-slate-500 mb-1">Person 2</label><select id="conn-to" class="px-3 py-2 border border-slate-300 rounded-md text-sm w-48 bg-white"></select></div>
                     <button onclick="addConnection()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-bold transition-colors shadow-sm">Verbinden</button>
                 </div>
-                <button onclick="document.getElementById('tree-viewport').scrollTo({top: 1750, left: 1500, behavior: 'smooth'})" class="text-slate-500 hover:text-slate-900 text-sm font-bold px-3 py-2"><i class="fa-solid fa-location-crosshairs mr-2"></i>Zur Mitte</button>
+                <button onclick="centerTreeView()" class="text-slate-500 hover:text-slate-900 text-sm font-bold px-3 py-2 bg-slate-100 rounded-md transition-colors"><i class="fa-solid fa-location-crosshairs mr-2"></i>Ansicht Zentrieren</button>
             </div>
             
-            <div id="tree-viewport">
-                <div id="tree-canvas">
-                    <div id="tree-background-layer" class="absolute top-0 left-0 w-full h-full pointer-events-none z-0"></div>
-                    <svg id="tree-svg" class="absolute top-0 left-0 w-full h-full z-10" style="pointer-events: none;"></svg>
-                    <div id="tree-nodes-layer" class="absolute top-0 left-0 w-full h-full z-20 pointer-events-none"></div>
+            <div class="flex gap-4 h-[750px]">
+                <div class="w-1/4 min-w-[280px] bg-white border border-slate-200 rounded-xl flex flex-col overflow-hidden shadow-sm">
+                    <div class="bg-slate-100 p-3 border-b border-slate-200 font-bold text-sm text-slate-700"><i class="fa-solid fa-list mr-2"></i>Personen im Stammbaum</div>
+                    <ul class="flex-1 overflow-y-auto p-2 space-y-1" id="tree-sidebar-persons"></ul>
+                    
+                    <div class="bg-slate-100 p-3 border-y border-slate-200 font-bold text-sm text-slate-700"><i class="fa-solid fa-link mr-2"></i>Aktive Verbindungen</div>
+                    <ul class="flex-1 overflow-y-auto p-2 space-y-1" id="tree-sidebar-conns"></ul>
+                </div>
+
+                <div id="tree-viewport" class="flex-1">
+                    <div id="tree-canvas">
+                        <div id="tree-background-layer" class="absolute top-0 left-0 w-full h-full pointer-events-none z-0"></div>
+                        <svg id="tree-svg" class="absolute top-0 left-0 w-full h-full z-10 overflow-visible" style="pointer-events: none;"></svg>
+                        <div id="tree-nodes-layer" class="absolute top-0 left-0 w-full h-full z-20 pointer-events-none"></div>
+                    </div>
                 </div>
             </div>
-            <div class="text-xs text-slate-500 mt-2 text-center">Tipp: Ehepartner schnappen beim Verbinden automatisch nebeneinander. Gemeinsame Kinder erhalten eine gebündelte Linie.</div>
         </div>
     </main>
 
@@ -169,13 +187,20 @@
     <script>
         let persons = [];
         let connections = [];
+        let placedNodes = []; // Hält Personen, die X/Y Koordinaten haben
         let activePhotoId = null;
         let newTagCoords = null;
         const LEVEL_HEIGHT = 160; 
 
+        // Canvas Panning State
+        let panX = 0, panY = 0;
+        let isPanning = false;
+        let startX = 0, startY = 0;
+
         document.addEventListener('DOMContentLoaded', async () => {
             await loadPersons();
             await loadPhotos();
+            setupPanning();
             switchTab('gallery');
         });
 
@@ -188,163 +213,110 @@
             const activeBtn = document.getElementById('nav-' + tabId);
             activeBtn.classList.remove('text-slate-500'); activeBtn.classList.add('bg-blue-50', 'text-blue-700');
             
-            if(tabId === 'tree') {
-                loadTree();
-                setTimeout(() => document.getElementById('tree-viewport').scrollTo(1500, 1750), 100);
-            }
+            if(tabId === 'tree') loadTree();
         }
 
-        // --- 1. PERSONEN ---
-        async function loadPersons() {
-            const res = await fetch('/api/persons');
-            persons = await res.json();
+        // --- PANNING LOGIK (Infinite Canvas) ---
+        function setupPanning() {
+            const viewport = document.getElementById('tree-viewport');
+            viewport.addEventListener('mousedown', (e) => {
+                if(e.target.closest('.tree-node')) return; // Wenn ein Node geklickt wird, greift dessen eigene Drag-Logik
+                isPanning = true;
+                startX = e.clientX - panX;
+                startY = e.clientY - panY;
+            });
+            window.addEventListener('mousemove', (e) => {
+                if(!isPanning) return;
+                panX = e.clientX - startX;
+                panY = e.clientY - startY;
+                applyTransform();
+            });
+            window.addEventListener('mouseup', () => { isPanning = false; });
+        }
+
+        function applyTransform() {
+            document.getElementById('tree-canvas').style.transform = `translate(${panX}px, ${panY}px)`;
+            // Damit das Raster (Hintergrund) unendlich wirkt:
+            document.getElementById('tree-viewport').style.backgroundPosition = `${panX}px ${panY}px`;
+        }
+
+        function centerTreeView() {
+            if(placedNodes.length === 0) { panX = 0; panY = 0; applyTransform(); return; }
             
+            // Berechne das Zentrum aller platzierten Personen
+            let minX = Math.min(...placedNodes.map(n => n.x));
+            let maxX = Math.max(...placedNodes.map(n => n.x));
+            let minY = Math.min(...placedNodes.map(n => n.y));
+            let maxY = Math.max(...placedNodes.map(n => n.y));
+
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+
+            const viewport = document.getElementById('tree-viewport');
+            panX = (viewport.offsetWidth / 2) - centerX;
+            panY = (viewport.offsetHeight / 2) - centerY;
+            
+            applyTransform();
+        }
+
+        // --- 1. PERSONEN VERWALTUNG ---
+        async function loadPersons() {
+            const res = await fetch('/api/persons'); persons = await res.json();
             const tbody = document.getElementById('person-table-body');
             const selects = [document.getElementById('new-tag-select'), document.getElementById('conn-from'), document.getElementById('conn-to')];
-            
-            tbody.innerHTML = '';
-            let optionsHTML = '<option value="">Bitte wählen...</option>';
+            tbody.innerHTML = ''; let optionsHTML = '<option value="">Bitte wählen...</option>';
             
             persons.forEach(p => {
                 const icon = p.gender === 'm' ? '<i class="fa-solid fa-mars text-blue-500 w-4"></i>' : p.gender === 'f' ? '<i class="fa-solid fa-venus text-pink-500 w-4"></i>' : '<i class="fa-solid fa-genderless text-emerald-500 w-4"></i>';
-                const bYear = p.birth_date ? p.birth_date.split('-')[0] : '';
-                const dYear = p.death_date ? p.death_date.split('-')[0] : '';
+                const bYear = p.birth_date ? p.birth_date.split('-')[0] : ''; const dYear = p.death_date ? p.death_date.split('-')[0] : '';
                 const lifeStr = (bYear || dYear) ? `${bYear ? '*'+bYear : ''} ${dYear ? ' - †'+dYear : ''}` : '-';
-                
                 tbody.innerHTML += `
-                    <tr id="row-person-${p.id}" class="hover:bg-slate-50 transition-colors cursor-default">
-                        <td class="px-3 py-3 whitespace-nowrap font-medium text-slate-900">${icon} ${p.first_name} ${p.last_name}</td>
-                        <td class="px-3 py-3 whitespace-nowrap text-slate-500">${lifeStr}</td>
+                    <tr id="row-person-${p.id}" class="hover:bg-slate-50 cursor-default">
+                        <td class="px-3 py-3 font-medium text-slate-900">${icon} ${p.first_name} ${p.last_name}</td>
+                        <td class="px-3 py-3 text-slate-500">${lifeStr}</td>
                         <td class="px-3 py-3 text-slate-500 truncate max-w-[150px]">${p.role || ''}</td>
-                        <td class="px-3 py-3 whitespace-nowrap text-right">
-                            <button onclick='editPerson(${JSON.stringify(p)})' class="text-blue-600 hover:text-blue-900 mr-3 px-2 py-1"><i class="fa-solid fa-pen"></i> Bearbeiten</button>
+                        <td class="px-3 py-3 text-right">
+                            <button onclick='editPerson(${JSON.stringify(p)})' class="text-blue-600 hover:text-blue-900 mr-3 px-2 py-1"><i class="fa-solid fa-pen"></i></button>
                             <button onclick="deletePerson(${p.id})" class="text-red-500 hover:text-red-700 px-2 py-1"><i class="fa-solid fa-trash"></i></button>
                         </td>
-                    </tr>
-                `;
+                    </tr>`;
                 optionsHTML += `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`;
             });
             selects.forEach(s => { if(s) s.innerHTML = optionsHTML; });
         }
-
         async function savePerson() {
             const id = document.getElementById('p-id').value;
-            const data = {
-                id: id || null, first_name: document.getElementById('p-first').value.trim(),
-                last_name: document.getElementById('p-last').value.trim(), gender: document.getElementById('p-gender').value,
-                birth_date: document.getElementById('p-birth').value, death_date: document.getElementById('p-death').value, 
-                role: document.getElementById('p-role').value
-            };
+            const data = { id: id || null, first_name: document.getElementById('p-first').value.trim(), last_name: document.getElementById('p-last').value.trim(), gender: document.getElementById('p-gender').value, birth_date: document.getElementById('p-birth').value, death_date: document.getElementById('p-death').value, role: document.getElementById('p-role').value };
             if(!data.first_name || !data.last_name) return alert("Name ist ein Pflichtfeld.");
             await fetch('/api/persons', { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            resetPersonForm();
-            await loadPersons();
+            resetPersonForm(); await loadPersons();
         }
-
         function editPerson(p) {
             document.querySelectorAll('tr[id^="row-person-"]').forEach(tr => tr.classList.remove('edit-mode-row'));
-            const row = document.getElementById(`row-person-${p.id}`);
-            if(row) row.classList.add('edit-mode-row');
-
-            document.getElementById('p-id').value = p.id;
-            document.getElementById('p-first').value = p.first_name;
-            document.getElementById('p-last').value = p.last_name;
-            document.getElementById('p-gender').value = p.gender || 'd';
-            document.getElementById('p-birth').value = p.birth_date || '';
-            document.getElementById('p-death').value = p.death_date || '';
-            document.getElementById('p-role').value = p.role || '';
-            
-            const container = document.getElementById('person-form-container');
-            container.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50');
-            document.getElementById('person-form-title').innerHTML = `<span class="text-blue-600"><i class="fa-solid fa-pen-to-square mr-2"></i>Wird bearbeitet:</span> ${p.first_name}`;
-            document.getElementById('cancel-edit-btn').classList.remove('hidden');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            const row = document.getElementById(`row-person-${p.id}`); if(row) row.classList.add('edit-mode-row');
+            document.getElementById('p-id').value = p.id; document.getElementById('p-first').value = p.first_name; document.getElementById('p-last').value = p.last_name; document.getElementById('p-gender').value = p.gender || 'd'; document.getElementById('p-birth').value = p.birth_date || ''; document.getElementById('p-death').value = p.death_date || ''; document.getElementById('p-role').value = p.role || '';
+            const container = document.getElementById('person-form-container'); container.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50'); document.getElementById('person-form-title').innerHTML = `<span class="text-blue-600"><i class="fa-solid fa-pen-to-square mr-2"></i>Wird bearbeitet:</span> ${p.first_name}`; document.getElementById('cancel-edit-btn').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-
         function resetPersonForm() {
             document.querySelectorAll('tr[id^="row-person-"]').forEach(tr => tr.classList.remove('edit-mode-row'));
-            const container = document.getElementById('person-form-container');
-            container.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50');
-            document.getElementById('p-id').value = '';
-            document.querySelectorAll('#tab-persons input').forEach(i => i.value = '');
-            document.getElementById('p-gender').value = 'm';
-            document.getElementById('person-form-title').innerText = "Neue Person anlegen";
-            document.getElementById('cancel-edit-btn').classList.add('hidden');
+            const container = document.getElementById('person-form-container'); container.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50');
+            document.getElementById('p-id').value = ''; document.querySelectorAll('#tab-persons input').forEach(i => i.value = ''); document.getElementById('p-gender').value = 'm'; document.getElementById('person-form-title').innerText = "Neue Person anlegen"; document.getElementById('cancel-edit-btn').classList.add('hidden');
         }
-
         async function deletePerson(id) { if(confirm("Diese Person wirklich komplett löschen?")) { await fetch(`/api/persons?id=${id}`, { method: 'DELETE' }); await loadPersons(); } }
 
-        // --- 2. MEDIATHEK ---
-        async function uploadPhoto() {
-            const fileInput = document.getElementById('fileInput');
-            if(!fileInput.files.length) return alert("Bitte wähle ein Bild aus.");
-            const btn = event.currentTarget;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Lädt hoch...'; btn.disabled = true;
-            const fd = new FormData();
-            fd.append('file', fileInput.files[0]); fd.append('date_taken', document.getElementById('dateInput').value); fd.append('description', document.getElementById('descInput').value);
-            await fetch('/api/photos', { method: 'POST', body: fd });
-            fileInput.value = ''; document.getElementById('dateInput').value = ''; document.getElementById('descInput').value = '';
-            btn.innerHTML = '<i class="fa-solid fa-upload mr-2"></i>Foto hochladen'; btn.disabled = false;
-            await loadPhotos(); switchTab('gallery');
-        }
-        async function loadPhotos() {
-            const res = await fetch('/api/photos'); const photos = await res.json();
-            const grid = document.getElementById('gallery-grid'); grid.innerHTML = '';
-            photos.forEach(photo => {
-                const dateStr = photo.date_taken ? photo.date_taken.split('-').reverse().join('.') : '';
-                grid.innerHTML += `
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden group relative">
-                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"><button onclick="deletePhoto(${photo.id}, event)" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full shadow flex items-center justify-center"><i class="fa-solid fa-trash"></i></button></div>
-                        <div class="h-48 bg-slate-100 cursor-pointer overflow-hidden" onclick="openModal(${photo.id}, '${photo.url}')"><img src="${photo.url}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"></div>
-                        <div class="p-4"><p class="text-xs font-bold text-blue-600 mb-1">${dateStr}</p><p class="text-sm text-slate-700 line-clamp-2">${escapeHTML(photo.description) || '<i>Keine Beschreibung</i>'}</p></div>
-                    </div>`;
-            });
-        }
+        // --- 2. MEDIATHEK & 3. TAGGING (Kompakt gelassen, da unverändert) ---
+        async function uploadPhoto() { const fileInput = document.getElementById('fileInput'); if(!fileInput.files.length) return alert("Bitte wähle ein Bild aus."); const btn = event.currentTarget; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Lädt hoch...'; btn.disabled = true; const fd = new FormData(); fd.append('file', fileInput.files[0]); fd.append('date_taken', document.getElementById('dateInput').value); fd.append('description', document.getElementById('descInput').value); await fetch('/api/photos', { method: 'POST', body: fd }); fileInput.value = ''; document.getElementById('dateInput').value = ''; document.getElementById('descInput').value = ''; btn.innerHTML = '<i class="fa-solid fa-upload mr-2"></i>Foto hochladen'; btn.disabled = false; await loadPhotos(); switchTab('gallery'); }
+        async function loadPhotos() { const res = await fetch('/api/photos'); const photos = await res.json(); const grid = document.getElementById('gallery-grid'); grid.innerHTML = ''; photos.forEach(photo => { const dateStr = photo.date_taken ? photo.date_taken.split('-').reverse().join('.') : ''; grid.innerHTML += `<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden group relative"><div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"><button onclick="deletePhoto(${photo.id}, event)" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full shadow flex items-center justify-center"><i class="fa-solid fa-trash"></i></button></div><div class="h-48 bg-slate-100 cursor-pointer overflow-hidden" onclick="openModal(${photo.id}, '${photo.url}')"><img src="${photo.url}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"></div><div class="p-4"><p class="text-xs font-bold text-blue-600 mb-1">${dateStr}</p><p class="text-sm text-slate-700 line-clamp-2">${escapeHTML(photo.description) || '<i>Keine Beschreibung</i>'}</p></div></div>`; }); }
         async function deletePhoto(id, e) { e.stopPropagation(); if(confirm("Foto löschen?")) { await fetch(`/api/photos?id=${id}`, { method: 'DELETE' }); loadPhotos(); } }
-
-        // --- 3. BILD-TAGGING ---
         async function openModal(id, url) { activePhotoId = id; document.getElementById('modal-img').src = url; document.getElementById('photo-modal').classList.remove('hidden'); document.getElementById('photo-modal').classList.add('flex'); await loadTags(); }
         function closeModal() { document.getElementById('photo-modal').classList.add('hidden'); document.getElementById('photo-modal').classList.remove('flex'); cancelNewTag(); }
-        function startNewTag(e) {
-            if(e.target.id !== 'modal-img') return;
-            const rect = e.target.getBoundingClientRect(); newTagCoords = { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 };
-            const popup = document.getElementById('new-tag-popup'); popup.classList.remove('hidden');
-            const containerRect = document.getElementById('tag-container').getBoundingClientRect();
-            popup.style.left = (e.clientX - containerRect.left + 15) + 'px'; popup.style.top = (e.clientY - containerRect.top + 15) + 'px';
-        }
+        function startNewTag(e) { if(e.target.id !== 'modal-img') return; const rect = e.target.getBoundingClientRect(); newTagCoords = { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 }; const popup = document.getElementById('new-tag-popup'); popup.classList.remove('hidden'); const containerRect = document.getElementById('tag-container').getBoundingClientRect(); popup.style.left = (e.clientX - containerRect.left + 15) + 'px'; popup.style.top = (e.clientY - containerRect.top + 15) + 'px'; }
         function cancelNewTag() { document.getElementById('new-tag-popup').classList.add('hidden'); newTagCoords = null; }
-        async function saveTag() {
-            const pid = document.getElementById('new-tag-select').value; if(!pid || !newTagCoords) return;
-            await fetch('/api/tags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ photo_id: activePhotoId, person_id: pid, x_percent: newTagCoords.x, y_percent: newTagCoords.y }) });
-            cancelNewTag(); loadTags();
-        }
+        async function saveTag() { const pid = document.getElementById('new-tag-select').value; if(!pid || !newTagCoords) return; await fetch('/api/tags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ photo_id: activePhotoId, person_id: pid, x_percent: newTagCoords.x, y_percent: newTagCoords.y }) }); cancelNewTag(); loadTags(); }
         async function deleteTag(tagId) { await fetch(`/api/tags?id=${tagId}`, { method: 'DELETE' }); loadTags(); }
-        async function loadTags() {
-            document.querySelectorAll('.tag-marker').forEach(e => e.remove());
-            const res = await fetch(`/api/tags?photoId=${activePhotoId}`); const tags = await res.json();
-            const container = document.getElementById('tag-container'); const img = document.getElementById('modal-img');
-            tags.forEach(tag => {
-                const marker = document.createElement('div'); marker.className = 'tag-marker'; marker.style.left = tag.x_percent + '%'; marker.style.top = tag.y_percent + '%';
-                marker.innerHTML = `<button class="tag-delete-btn" onclick="deleteTag(${tag.id})"><i class="fa-solid fa-xmark"></i></button><div class="tag-dot"></div><div class="tag-label">${tag.first_name} ${tag.last_name}</div>`;
-                let isDragging = false;
-                marker.addEventListener('mousedown', (e) => {
-                    if(e.target.closest('button')) return; isDragging = true; e.stopPropagation();
-                    const dragMove = (ev) => {
-                        if(!isDragging) return; const rect = img.getBoundingClientRect();
-                        let newX = ((ev.clientX - rect.left) / rect.width) * 100; let newY = ((ev.clientY - rect.top) / rect.height) * 100;
-                        marker.style.left = Math.max(0, Math.min(100, newX)) + '%'; marker.style.top = Math.max(0, Math.min(100, newY)) + '%';
-                    };
-                    const dragEnd = async () => {
-                        isDragging = false; document.removeEventListener('mousemove', dragMove); document.removeEventListener('mouseup', dragEnd);
-                        await fetch('/api/tags', { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: tag.id, x_percent: parseFloat(marker.style.left), y_percent: parseFloat(marker.style.top) }) });
-                    };
-                    document.addEventListener('mousemove', dragMove); document.addEventListener('mouseup', dragEnd);
-                });
-                container.appendChild(marker);
-            });
-        }
+        async function loadTags() { document.querySelectorAll('.tag-marker').forEach(e => e.remove()); const res = await fetch(`/api/tags?photoId=${activePhotoId}`); const tags = await res.json(); const container = document.getElementById('tag-container'); const img = document.getElementById('modal-img'); tags.forEach(tag => { const marker = document.createElement('div'); marker.className = 'tag-marker'; marker.style.left = tag.x_percent + '%'; marker.style.top = tag.y_percent + '%'; marker.innerHTML = `<button class="tag-delete-btn" onclick="deleteTag(${tag.id})"><i class="fa-solid fa-xmark"></i></button><div class="tag-dot"></div><div class="tag-label">${tag.first_name} ${tag.last_name}</div>`; let isDragging = false; marker.addEventListener('mousedown', (e) => { if(e.target.closest('button')) return; isDragging = true; e.stopPropagation(); const dragMove = (ev) => { if(!isDragging) return; const rect = img.getBoundingClientRect(); let newX = ((ev.clientX - rect.left) / rect.width) * 100; let newY = ((ev.clientY - rect.top) / rect.height) * 100; marker.style.left = Math.max(0, Math.min(100, newX)) + '%'; marker.style.top = Math.max(0, Math.min(100, newY)) + '%'; }; const dragEnd = async () => { isDragging = false; document.removeEventListener('mousemove', dragMove); document.removeEventListener('mouseup', dragEnd); await fetch('/api/tags', { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: tag.id, x_percent: parseFloat(marker.style.left), y_percent: parseFloat(marker.style.top) }) }); }; document.addEventListener('mousemove', dragMove); document.addEventListener('mouseup', dragEnd); }); container.appendChild(marker); }); }
 
-        // --- 4. STAMMBAUM ---
+        // --- 4. STAMMBAUM KERN ---
         async function loadTree() {
             const [resNodes, resConns] = await Promise.all([fetch('/api/tree'), fetch('/api/connections')]);
             const nodes = await resNodes.json();
@@ -352,92 +324,184 @@
 
             const layer = document.getElementById('tree-nodes-layer');
             layer.innerHTML = '';
-
-            let minY = 4000, maxY = 0;
+            placedNodes = [];
+            let minY = Infinity, maxY = -Infinity;
 
             const treePersons = persons.map(p => {
                 const nodeData = nodes.find(n => n.person_id === p.id);
-                return { ...p, x: nodeData?.x_pos || null, y: nodeData?.y_pos || null };
+                return { ...p, x: nodeData?.x_pos ?? null, y: nodeData?.y_pos ?? null };
             });
 
-            treePersons.forEach((p, idx) => {
-                if(p.x === null) { p.x = 2000 + (idx * 20); p.y = 2000 + (idx * 20); }
-                if (p.y < minY) minY = p.y;
-                if (p.y > maxY) maxY = p.y;
+            treePersons.forEach((p) => {
+                if(p.x !== null) {
+                    placedNodes.push(p);
+                    if (p.y < minY) minY = p.y;
+                    if (p.y > maxY) maxY = p.y;
 
-                const el = document.createElement('div');
-                const genderClass = p.gender === 'm' ? 'gender-m' : p.gender === 'f' ? 'gender-f' : 'gender-d';
-                el.className = `tree-node ${genderClass} pointer-events-auto`;
-                el.dataset.id = p.id;
-                el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
+                    const el = document.createElement('div');
+                    const genderClass = p.gender === 'm' ? 'gender-m' : p.gender === 'f' ? 'gender-f' : 'gender-d';
+                    el.className = `tree-node ${genderClass} pointer-events-auto`;
+                    el.dataset.id = p.id;
+                    el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
+                    
+                    const bYear = p.birth_date ? p.birth_date.split('-')[0] : ''; const dYear = p.death_date ? p.death_date.split('-')[0] : '';
+                    let lifeStr = ''; if(bYear || dYear) lifeStr = `<div class="text-[10px] text-slate-500">${bYear ? '*'+bYear : ''} ${dYear ? '†'+dYear : ''}</div>`;
+
+                    el.innerHTML = `
+                        <button class="node-delete-btn" onclick="removeNodeFromTree(${p.id}, event)" title="Aus Ansicht entfernen"><i class="fa-solid fa-xmark"></i></button>
+                        <div class="font-bold text-slate-800 text-sm">${p.first_name} ${p.last_name}</div>${lifeStr}
+                    `;
+
+                    // Dragging angepasst an die transformierte Canvas (panX, panY)
+                    el.addEventListener('mousedown', (e) => {
+                        if(e.target.closest('button')) return;
+                        
+                        const startNodeX = parseFloat(el.style.left);
+                        const startNodeY = parseFloat(el.style.top);
+                        const startMouseX = e.clientX;
+                        const startMouseY = e.clientY;
+                        
+                        const move = (ev) => {
+                            const dx = (ev.clientX - startMouseX);
+                            const dy = (ev.clientY - startMouseY);
+                            el.style.left = (startNodeX + dx) + 'px';
+                            el.style.top = (startNodeY + dy) + 'px';
+                            drawTreeLines();
+                        };
+                        
+                        const stop = async () => {
+                            document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
+                            let currentY = parseFloat(el.style.top);
+                            let snappedY = Math.round(currentY / LEVEL_HEIGHT) * LEVEL_HEIGHT;
+                            el.style.top = snappedY + 'px';
+
+                            await fetch('/api/tree', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ person_id: p.id, x_pos: parseFloat(el.style.left), y_pos: snappedY }) });
+                            loadTree(); // Refresh lists and background
+                        };
+                        document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop);
+                    });
+                    layer.appendChild(el);
+                }
+            });
+
+            // Initial zentrieren, wenn das erste Mal geladen wird und noch kein Pan gesetzt ist
+            if (panX === 0 && panY === 0 && placedNodes.length > 0) centerTreeView();
+
+            drawDynamicLevels(minY, maxY);
+            drawTreeLines();
+            populateTreeSidebar(treePersons);
+        }
+
+        function populateTreeSidebar(treePersons) {
+            const personsList = document.getElementById('tree-sidebar-persons');
+            const connsList = document.getElementById('tree-sidebar-conns');
+            
+            personsList.innerHTML = ''; connsList.innerHTML = '';
+
+            // Sidebar Personen
+            treePersons.forEach(p => {
+                const isPlaced = p.x !== null;
+                const li = document.createElement('li');
+                li.className = `p-2 rounded text-xs cursor-pointer flex justify-between items-center transition-colors ${isPlaced ? 'hover:bg-blue-50 text-slate-800' : 'text-slate-400 border border-dashed border-slate-200'}`;
+                li.innerHTML = `<span>${p.first_name} ${p.last_name}</span> ${isPlaced ? '<i class="fa-solid fa-eye text-blue-400"></i>' : '<span>(Unplatziert)</span>'}`;
                 
-                const bYear = p.birth_date ? p.birth_date.split('-')[0] : '';
-                const dYear = p.death_date ? p.death_date.split('-')[0] : '';
-                let lifeStr = '';
-                if(bYear || dYear) lifeStr = `<div class="text-[10px] text-slate-500">${bYear ? '*'+bYear : ''} ${dYear ? '†'+dYear : ''}</div>`;
-
-                el.innerHTML = `<div class="font-bold text-slate-800 text-sm">${p.first_name} ${p.last_name}</div>${lifeStr}`;
-
-                el.addEventListener('mousedown', (e) => {
-                    let offsetX = e.clientX - el.getBoundingClientRect().left;
-                    let offsetY = e.clientY - el.getBoundingClientRect().top;
-                    const canvasRect = document.getElementById('tree-canvas').getBoundingClientRect();
-                    
-                    const move = (ev) => {
-                        el.style.left = (ev.clientX - canvasRect.left - offsetX) + 'px';
-                        el.style.top = (ev.clientY - canvasRect.top - offsetY) + 'px';
-                        drawTreeLines();
-                    };
-                    
-                    const stop = async () => {
-                        document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
-                        let currentY = parseFloat(el.style.top);
-                        let snappedY = Math.round(currentY / LEVEL_HEIGHT) * LEVEL_HEIGHT;
-                        el.style.top = snappedY + 'px';
-
-                        await fetch('/api/tree', {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ person_id: p.id, x_pos: parseFloat(el.style.left), y_pos: snappedY })
-                        });
-                        loadTree(); 
-                    };
-                    document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop);
-                });
-                layer.appendChild(el);
+                li.onclick = async () => {
+                    if(isPlaced) {
+                        // Zentriere auf die Person
+                        const viewport = document.getElementById('tree-viewport');
+                        panX = (viewport.offsetWidth / 2) - p.x;
+                        panY = (viewport.offsetHeight / 2) - p.y;
+                        applyTransform();
+                    } else {
+                        // Platziere die neue Person genau in der Mitte der aktuellen Sicht!
+                        const viewport = document.getElementById('tree-viewport');
+                        const newX = -panX + (viewport.offsetWidth / 2);
+                        const newY = Math.round((-panY + (viewport.offsetHeight / 2)) / LEVEL_HEIGHT) * LEVEL_HEIGHT;
+                        
+                        await fetch('/api/tree', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ person_id: p.id, x_pos: newX, y_pos: newY }) });
+                        loadTree();
+                    }
+                };
+                personsList.appendChild(li);
             });
-            drawDynamicLevels(minY, maxY); drawTreeLines();
+
+            // Sidebar Verbindungen
+            const displayConns = new Set();
+            connections.forEach(c => {
+                const hash = [c.from_person_id, c.to_person_id].sort().join('-');
+                if(c.type !== 'child' && displayConns.has(hash)) return;
+                if(c.type !== 'child') displayConns.add(hash);
+
+                const p1 = persons.find(p => p.id === c.from_person_id);
+                const p2 = persons.find(p => p.id === c.to_person_id);
+                if(!p1 || !p2) return;
+
+                let typeLabel = "Elternteil von";
+                if(c.type === 'spouse') typeLabel = "Ehe mit";
+                if(c.type === 'sibling') typeLabel = "Geschwister mit";
+                if(c.type === 'aunt_uncle') typeLabel = "Tante/Onkel von";
+
+                const li = document.createElement('li');
+                li.className = "p-2 hover:bg-red-50 rounded text-xs flex justify-between items-center group transition-colors border-b border-slate-100";
+                li.innerHTML = `
+                    <div class="truncate pr-2"><b>${p1.first_name}</b> <span class="text-slate-400">${typeLabel}</span> <b>${p2.first_name}</b></div>
+                    <button class="text-red-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity" onclick="deleteConnection(${c.id})"><i class="fa-solid fa-trash"></i></button>
+                `;
+                connsList.appendChild(li);
+            });
+        }
+
+        async function removeNodeFromTree(personId, e) {
+            e.stopPropagation(); // Verhindert Panning/Dragging
+            await fetch(`/api/tree?id=${personId}`, { method: 'DELETE' });
+            loadTree();
+        }
+
+        async function deleteConnection(connId) {
+            await fetch(`/api/connections?id=${connId}`, { method: 'DELETE' });
+            loadTree();
         }
 
         function drawDynamicLevels(minY, maxY) {
             const bgLayer = document.getElementById('tree-background-layer'); bgLayer.innerHTML = '';
-            let startLevel = Math.floor(minY / LEVEL_HEIGHT) - 1; let endLevel = Math.ceil(maxY / LEVEL_HEIGHT) + 1;
+            if (minY === Infinity) return;
+            let startLevel = Math.floor(minY / LEVEL_HEIGHT) - 2; let endLevel = Math.ceil(maxY / LEVEL_HEIGHT) + 2;
             for (let i = startLevel; i <= endLevel; i++) {
                 const line = document.createElement('div'); line.className = 'tree-level-bg'; line.style.top = (i * LEVEL_HEIGHT - 20) + 'px'; bgLayer.appendChild(line);
             }
         }
 
         async function addConnection() {
-            const from = document.getElementById('conn-from').value;
-            const to = document.getElementById('conn-to').value;
-            const type = document.getElementById('conn-type').value;
-
+            const from = document.getElementById('conn-from').value; const to = document.getElementById('conn-to').value; const type = document.getElementById('conn-type').value;
             if(!from || !to || from === to) return alert("Ungültige Personenauswahl.");
 
-            // INTELLIGENTE PLATZIERUNG UND MORPHING FÜR EHEPARTNER
-            const resTree = await fetch('/api/tree');
-            const currentNodes = await resTree.json();
-            
-            const fromNode = currentNodes.find(n => n.person_id == from) || { x_pos: 2000, y_pos: 2000 };
-            const isToNew = !currentNodes.find(n => n.person_id == to);
+            // Intelligentes Positionieren, falls Knoten fehlen
+            const resTree = await fetch('/api/tree'); const currentNodes = await resTree.json();
+            const fromNode = currentNodes.find(n => n.person_id == from);
+            const toNode = currentNodes.find(n => n.person_id == to);
 
-            if (type === 'spouse') {
-                // EHEPARTNER: IMMER SOFORT ZUSAMMEN MORPHEN
-                const nX = fromNode.x_pos + 180; const nY = fromNode.y_pos;
-                await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: to, x_pos: nX, y_pos: nY }) });
+            const viewport = document.getElementById('tree-viewport');
+            const viewCenterX = -panX + (viewport.offsetWidth / 2);
+            const viewCenterY = Math.round((-panY + (viewport.offsetHeight / 2)) / LEVEL_HEIGHT) * LEVEL_HEIGHT;
+
+            if (type === 'spouse' && fromNode && toNode) {
+                // Morphen
+                await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: to, x_pos: fromNode.x_pos + 180, y_pos: fromNode.y_pos }) });
             } 
-            else if (isToNew) {
+            else if (!toNode && fromNode) {
                 let nX = fromNode.x_pos; let nY = fromNode.y_pos;
-                if(type === 'parent_child') { nY += LEVEL_HEIGHT; } else if(type === 'sibling') { nX += 160; } else if(type === 'aunt_uncle') { nX += 160; nY += LEVEL_HEIGHT; }
+                if(type === 'parent_child') { nY += LEVEL_HEIGHT; } else if(type === 'spouse') { nX += 180; } else if(type === 'sibling') { nX += 160; } else if(type === 'aunt_uncle') { nX += 160; nY += LEVEL_HEIGHT; }
+                await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: to, x_pos: nX, y_pos: nY }) });
+            }
+            else if (!fromNode && toNode) {
+                let nX = toNode.x_pos; let nY = toNode.y_pos;
+                if(type === 'parent_child') { nY -= LEVEL_HEIGHT; } else if(type === 'spouse') { nX -= 180; } else if(type === 'sibling') { nX -= 160; } else if(type === 'aunt_uncle') { nX -= 160; nY -= LEVEL_HEIGHT; }
+                await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: from, x_pos: nX, y_pos: nY }) });
+            }
+            else if (!fromNode && !toNode) {
+                await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: from, x_pos: viewCenterX, y_pos: viewCenterY }) });
+                let nX = viewCenterX; let nY = viewCenterY;
+                if(type === 'parent_child') { nY += LEVEL_HEIGHT; } else if(type === 'spouse') { nX += 180; } else if(type === 'sibling') { nX += 160; } else if(type === 'aunt_uncle') { nX += 160; nY += LEVEL_HEIGHT; }
                 await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: to, x_pos: nX, y_pos: nY }) });
             }
 
@@ -447,41 +511,25 @@
 
         function appendTooltip(element, text) {
             const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-            title.textContent = "Beziehung: " + text;
-            element.appendChild(title);
+            title.textContent = "Beziehung: " + text; element.appendChild(title);
         }
 
         function drawTreeLines() {
-            const svg = document.getElementById('tree-svg');
-            svg.innerHTML = '';
-            
-            // MAP: Wer sind die Eltern von Kind X?
-            const parentMap = {}; 
-            // MAP: Wer ist mit wem verheiratet?
-            const spousesMap = {}; 
-
+            const svg = document.getElementById('tree-svg'); svg.innerHTML = '';
+            const parentMap = {}; const spousesMap = {}; 
             connections.forEach(c => {
-                if (c.type === 'child') {
-                    if (!parentMap[c.from_person_id]) parentMap[c.from_person_id] = new Set();
-                    parentMap[c.from_person_id].add(c.to_person_id);
-                }
-                if (c.type === 'spouse') {
-                    if (!spousesMap[c.from_person_id]) spousesMap[c.from_person_id] = new Set();
-                    spousesMap[c.from_person_id].add(c.to_person_id);
-                }
+                if (c.type === 'child') { if (!parentMap[c.from_person_id]) parentMap[c.from_person_id] = new Set(); parentMap[c.from_person_id].add(c.to_person_id); }
+                if (c.type === 'spouse') { if (!spousesMap[c.from_person_id]) spousesMap[c.from_person_id] = new Set(); spousesMap[c.from_person_id].add(c.to_person_id); }
             });
 
-            const drawnPairs = new Set(); 
-            const handledParentLines = new Set(); // Speichert, welche Eltern-Kind-Linien durch gemeinsame Linien ersetzt wurden
+            const drawnPairs = new Set(); const handledParentLines = new Set();
 
             connections.forEach(c => {
                 const hash = [c.from_person_id, c.to_person_id].sort().join('-');
                 if (c.type !== 'child' && drawnPairs.has(hash)) return; 
                 if (c.type !== 'child') drawnPairs.add(hash);
 
-                const p1 = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`);
-                const p2 = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
-                
+                const p1 = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`); const p2 = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
                 if(p1 && p2) {
                     const x1 = p1.offsetLeft + p1.offsetWidth/2; const y1 = p1.offsetTop + p1.offsetHeight/2;
                     const x2 = p2.offsetLeft + p2.offsetWidth/2; const y2 = p2.offsetTop + p2.offsetHeight/2;
@@ -490,53 +538,37 @@
                     if (c.type === 'spouse') {
                         el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                         el.setAttribute('x1', x1); el.setAttribute('y1', y1); el.setAttribute('x2', x2); el.setAttribute('y2', y2);
-                        el.setAttribute('stroke', '#ec4899'); el.setAttribute('stroke-dasharray', '8 4');
-                        appendTooltip(el, 'Ehepartner');
+                        el.setAttribute('stroke', '#ec4899'); el.setAttribute('stroke-dasharray', '8 4'); appendTooltip(el, 'Ehepartner');
                     } 
                     else if (c.type === 'sibling') {
                         el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                         el.setAttribute('x1', x1); el.setAttribute('y1', y1); el.setAttribute('x2', x2); el.setAttribute('y2', y2);
-                        el.setAttribute('stroke', '#10b981'); 
-                        appendTooltip(el, 'Geschwister');
+                        el.setAttribute('stroke', '#10b981'); appendTooltip(el, 'Geschwister');
                     }
                     else if (c.type === 'aunt_uncle') {
                         el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                         el.setAttribute('x1', x1); el.setAttribute('y1', y1); el.setAttribute('x2', x2); el.setAttribute('y2', y2);
-                        el.setAttribute('stroke', '#8b5cf6'); el.setAttribute('stroke-dasharray', '4 6');
-                        appendTooltip(el, 'Tante / Onkel');
+                        el.setAttribute('stroke', '#8b5cf6'); el.setAttribute('stroke-dasharray', '4 6'); appendTooltip(el, 'Tante / Onkel');
                     }
                     else if (c.type === 'child') {
-                        const childId = c.from_person_id; const parentId = c.to_person_id;
-                        const relHash = `${parentId}-${childId}`;
-                        
+                        const childId = c.from_person_id; const parentId = c.to_person_id; const relHash = `${parentId}-${childId}`;
                         if (handledParentLines.has(relHash)) return;
-
                         const parents = Array.from(parentMap[childId] || []);
                         let jointDrawn = false;
 
-                        // GEMEINSAME LINIE FÜR EHEPARTNER-KINDER
                         if (parents.length >= 2) {
                             for (let i = 0; i < parents.length; i++) {
                                 for (let j = i + 1; j < parents.length; j++) {
                                     if (spousesMap[parents[i]] && spousesMap[parents[i]].has(parents[j])) {
-                                        const domP1 = document.querySelector(`.tree-node[data-id="${parents[i]}"]`);
-                                        const domP2 = document.querySelector(`.tree-node[data-id="${parents[j]}"]`);
-                                        const domC = document.querySelector(`.tree-node[data-id="${childId}"]`);
-                                        
+                                        const domP1 = document.querySelector(`.tree-node[data-id="${parents[i]}"]`); const domP2 = document.querySelector(`.tree-node[data-id="${parents[j]}"]`); const domC = document.querySelector(`.tree-node[data-id="${childId}"]`);
                                         if (domP1 && domP2 && domC) {
                                             const jointX = (domP1.offsetLeft + domP1.offsetWidth/2 + domP2.offsetLeft + domP2.offsetWidth/2) / 2;
                                             const jointY = domP1.offsetTop + domP1.offsetHeight/2; 
-                                            
                                             const cx = domC.offsetLeft + domC.offsetWidth/2; const cy = domC.offsetTop;
-
                                             el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                                             const d = `M ${jointX} ${jointY} C ${jointX} ${jointY + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
-                                            el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569');
-                                            appendTooltip(el, 'Gemeinsame Kinder');
-                                            
-                                            handledParentLines.add(`${parents[i]}-${childId}`);
-                                            handledParentLines.add(`${parents[j]}-${childId}`);
-                                            jointDrawn = true; break;
+                                            el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569'); appendTooltip(el, 'Gemeinsame Kinder');
+                                            handledParentLines.add(`${parents[i]}-${childId}`); handledParentLines.add(`${parents[j]}-${childId}`); jointDrawn = true; break;
                                         }
                                     }
                                 }
@@ -544,26 +576,20 @@
                             }
                         }
 
-                        // STANDARD-LINIE FÜR ALLEINERZIEHENDE
                         if (!jointDrawn) {
                             const px = p2.offsetLeft + p2.offsetWidth/2; const py = p2.offsetTop + p2.offsetHeight;
                             const cx = p1.offsetLeft + p1.offsetWidth/2; const cy = p1.offsetTop;
                             el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                             const d = `M ${px} ${py} C ${px} ${py + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
-                            el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569');
-                            appendTooltip(el, 'Elternteil -> Kind');
+                            el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569'); appendTooltip(el, 'Elternteil -> Kind');
                             handledParentLines.add(relHash);
                         }
                     }
 
-                    if (el) {
-                        el.setAttribute('stroke-width', '4'); el.setAttribute('class', 'tree-line');
-                        svg.appendChild(el);
-                    }
+                    if (el) { el.setAttribute('stroke-width', '4'); el.setAttribute('class', 'tree-line'); svg.appendChild(el); }
                 }
             });
         }
-
         function escapeHTML(str) { return (str||'').replace(/[&<>'"]/g, t => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[t]||t)); }
     </script>
 </body>
