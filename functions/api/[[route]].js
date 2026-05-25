@@ -1,13 +1,27 @@
 export async function onRequest(context) {
     const { request, env } = context;
     const url = new URL(request.url);
-    const path = url.pathname.replace('/api/', '');
+    const path = url.pathname.replace(/^\/api\//, '');
 
-    // --- PERSONEN (GET / POST) ---
+    // --- 1. BILDER AUS R2 LADEN (KORRIGIERT MIT DECODE) ---
+    if (path.startsWith('image/')) {
+        const encodedKey = path.replace('image/', '');
+        const key = decodeURIComponent(encodedKey);
+        const object = await env.BUCKET.get(key);
+        if (!object) return new Response('Foto nicht gefunden', { status: 404 });
+        return new Response(object.body, { 
+            headers: { 
+                'Content-Type': object.httpMetadata?.contentType || 'image/jpeg',
+                'Cache-Control': 'public, max-age=86400'
+            } 
+        });
+    }
+
+    // --- 2. PERSONEN VERWALTUNG ---
     if (path.startsWith('persons')) {
         if (request.method === 'GET') {
-            const { results } = await env.DB.prepare("SELECT * FROM persons").all();
-            return new Response(JSON.stringify(results), { status: 200 });
+            const { results } = await env.DB.prepare("SELECT * FROM persons ORDER BY last_name ASC").all();
+            return new Response(JSON.stringify(results), { headers: { 'Content-Type': 'application/json' } });
         }
         if (request.method === 'POST') {
             const data = await request.json();
@@ -15,23 +29,34 @@ export async function onRequest(context) {
                 .bind(data.first_name, data.last_name, data.role, data.birth_date).run();
             return new Response(JSON.stringify({ success: true }));
         }
+        if (request.method === 'DELETE') {
+            const id = url.searchParams.get('id');
+            if (!id) return new Response('ID fehlt', { status: 400 });
+            // Kaskadierendes Löschen aus allen Hilfstabellen
+            await env.DB.prepare("DELETE FROM photo_tags WHERE person_id = ?").bind(id).run();
+            await env.DB.prepare("DELETE FROM tree_nodes WHERE person_id = ?").bind(id).run();
+            await env.DB.prepare("DELETE FROM connections WHERE from_person_id = ? OR to_person_id = ?").bind(id, id).run();
+            await env.DB.prepare("DELETE FROM persons WHERE id = ?").bind(id).run();
+            return new Response(JSON.stringify({ success: true }));
+        }
     }
 
-    // --- FOTOS (GET / POST) ---
+    // --- 3. FOTOS VERWALTUNG ---
     if (path.startsWith('photos')) {
         if (request.method === 'GET') {
             const { results } = await env.DB.prepare("SELECT * FROM photos ORDER BY date_taken DESC").all();
-            // URLs für die Bilder generieren (vereinfacht über Basis-URL)
             for (let photo of results) {
-                photo.url = `/api/image/${photo.r2_key}`;
+                photo.url = `/api/image/${encodeURIComponent(photo.r2_key)}`;
             }
-            return new Response(JSON.stringify(results), { status: 200 });
+            return new Response(JSON.stringify(results), { headers: { 'Content-Type': 'application/json' } });
         }
         if (request.method === 'POST') {
             const formData = await request.formData();
             const file = formData.get('file');
             const description = formData.get('description');
             const date_taken = formData.get('date_taken');
+
+            if (!file) return new Response('Datei fehlt', { status: 400 });
 
             const key = `${Date.now()}-${file.name}`;
             await env.BUCKET.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
@@ -41,17 +66,42 @@ export async function onRequest(context) {
                 
             return new Response(JSON.stringify({ success: true }));
         }
+        if (request.method === 'DELETE') {
+            const id = url.searchParams.get('id');
+            if (!id) return new Response('ID fehlt', { status: 400 });
+            
+            // Datei aus R2 holen und dort löschen
+            const photo = await env.DB.prepare("SELECT r2_key FROM photos WHERE id = ?").bind(id).first();
+            if (photo) {
+                try { await env.BUCKET.delete(photo.r2_key); } catch(e) {}
+            }
+            // Aus Datenbank entfernen
+            await env.DB.prepare("DELETE FROM photo_tags WHERE photo_id = ?").bind(id).run();
+            await env.DB.prepare("DELETE FROM photos WHERE id = ?").bind(id).run();
+            return new Response(JSON.stringify({ success: true }));
+        }
     }
 
-    // --- BILDER AUS R2 LADEN ---
-    if (path.startsWith('image/')) {
-        const key = path.replace('image/', '');
-        const object = await env.BUCKET.get(key);
-        if (!object) return new Response('Not found', { status: 404 });
-        return new Response(object.body, { headers: { 'Content-Type': object.httpMetadata.contentType } });
+    // --- 4. BEZIEHUNGEN / VERBINDUNGEN ---
+    if (path.startsWith('connections')) {
+        if (request.method === 'GET') {
+            const { results } = await env.DB.prepare("SELECT * FROM connections").all();
+            return new Response(JSON.stringify(results), { headers: { 'Content-Type': 'application/json' } });
+        }
+        if (request.method === 'POST') {
+            const data = await request.json();
+            await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, ?)")
+                .bind(data.from_person_id, data.to_person_id, data.type).run();
+            return new Response(JSON.stringify({ success: true }));
+        }
+        if (request.method === 'DELETE') {
+            const id = url.searchParams.get('id');
+            await env.DB.prepare("DELETE FROM connections WHERE id = ?").bind(id).run();
+            return new Response(JSON.stringify({ success: true }));
+        }
     }
 
-    // --- BILD-MARKIERUNGEN (TAGS) ---
+    // --- 5. BILD MARKIERUNGEN (TAGS) ---
     if (path.startsWith('tags')) {
         if (request.method === 'GET') {
             const photoId = url.searchParams.get('photoId');
@@ -63,7 +113,7 @@ export async function onRequest(context) {
             `).bind(photoId).all();
             return new Response(JSON.stringify(results));
         }
-        if (request.method === 'POST') {
+        if (path.startsWith('tags') && request.method === 'POST') {
             const data = await request.json();
             await env.DB.prepare("INSERT INTO photo_tags (photo_id, person_id, x_percent, y_percent) VALUES (?, ?, ?, ?)")
                 .bind(data.photo_id, data.person_id, data.x_percent, data.y_percent).run();
@@ -71,7 +121,7 @@ export async function onRequest(context) {
         }
     }
 
-    // --- STAMMBAUM KNOTEN (DRAG & DROP POSITIONEN) ---
+    // --- 6. STAMMBAUM KNOTEN ---
     if (path.startsWith('tree')) {
         if (request.method === 'GET') {
             const { results } = await env.DB.prepare(`
@@ -83,7 +133,6 @@ export async function onRequest(context) {
         }
         if (request.method === 'POST') {
             const data = await request.json();
-            // Upsert (Einfügen oder aktualisieren der X/Y Koordinaten im Baum)
             await env.DB.prepare(`
                 INSERT INTO tree_nodes (person_id, x_pos, y_pos) VALUES (?, ?, ?)
                 ON CONFLICT(person_id) DO UPDATE SET x_pos=excluded.x_pos, y_pos=excluded.y_pos
