@@ -7,12 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Custom Styles für spezifische Interaktionen */
         .tab-content { display: none; }
         .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Foto Tagging */
         .tag-marker { position: absolute; transform: translate(-50%, -50%); cursor: grab; z-index: 10; display: flex; flex-direction: column; align-items: center; }
         .tag-marker:active { cursor: grabbing; }
         .tag-dot { width: 16px; height: 16px; background-color: #ef4444; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: transform 0.1s; }
@@ -21,13 +19,18 @@
         .tag-delete-btn { position: absolute; top: -10px; right: -25px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 10px; cursor: pointer; display: none; align-items: center; justify-content: center; }
         .tag-marker:hover .tag-delete-btn { display: flex; }
 
-        /* Stammbaum */
-        #tree-canvas { background-image: radial-gradient(#cbd5e1 1px, transparent 1px); background-size: 20px 20px; background-color: #f8fafc; }
+        /* Stammbaum Infinite Canvas */
+        #tree-viewport { position: relative; width: 100%; height: 750px; overflow: auto; border: 1px solid #cbd5e1; border-radius: 0 0 12px 12px; background-color: #f8fafc; }
+        #tree-canvas { position: absolute; top: 0; left: 0; width: 4000px; height: 4000px; }
+        .tree-level-bg { position: absolute; width: 100%; height: 1px; border-top: 2px dashed #cbd5e1; }
         .tree-node { position: absolute; background: white; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: grab; user-select: none; z-index: 20; min-width: 140px; text-align: center; }
         .tree-node:active { cursor: grabbing; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); transform: scale(1.02); }
-        .gender-m { border-color: #3b82f6; } /* Blau für Männer */
-        .gender-f { border-color: #ec4899; } /* Pink für Frauen */
-        .gender-d { border-color: #10b981; } /* Grün für Diverse/Unbekannt */
+        .gender-m { border-color: #3b82f6; } 
+        .gender-f { border-color: #ec4899; } 
+        .gender-d { border-color: #10b981; }
+
+        /* Edit Mode Highlight für Tabelle */
+        .edit-mode-row { background-color: #eff6ff !important; border-left: 4px solid #3b82f6; transition: all 0.2s; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
@@ -58,9 +61,7 @@
                     <p class="text-sm text-slate-500 mt-1">Klicke auf ein Bild, um es zu vergrößern und Personen zu markieren.</p>
                 </div>
             </div>
-            
-            <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                </div>
+            <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
         </div>
 
         <div id="tab-upload" class="tab-content">
@@ -80,7 +81,7 @@
                         <textarea id="descInput" rows="3" placeholder="Z.B. Sommerurlaub 1995, Taufe..." class="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></textarea>
                     </div>
                     <button onclick="uploadPhoto()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-sm">
-                        <i class="fa-solid fa-upload mr-2"></i>Foto in die Cloud hochladen
+                        <i class="fa-solid fa-upload mr-2"></i>Foto hochladen
                     </button>
                 </div>
             </div>
@@ -88,41 +89,27 @@
 
         <div id="tab-persons" class="tab-content">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-1 h-fit">
+                <div id="person-form-container" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-1 h-fit transition-all duration-300">
                     <h3 class="text-lg font-bold text-slate-900 mb-4" id="person-form-title">Neue Person anlegen</h3>
                     <input type="hidden" id="p-id">
                     <div class="space-y-4">
                         <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-slate-500 mb-1">Vorname</label>
-                                <input type="text" id="p-first" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-500 mb-1">Nachname</label>
-                                <input type="text" id="p-last" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm">
-                            </div>
+                            <div><label class="block text-xs font-medium text-slate-500 mb-1">Vorname</label><input type="text" id="p-first" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"></div>
+                            <div><label class="block text-xs font-medium text-slate-500 mb-1">Nachname</label><input type="text" id="p-last" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"></div>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 mb-1">Geschlecht</label>
                                 <select id="p-gender" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white">
-                                    <option value="m">Männlich</option>
-                                    <option value="f">Weiblich</option>
-                                    <option value="d">Divers/Unbekannt</option>
+                                    <option value="m">Männlich</option><option value="f">Weiblich</option><option value="d">Divers/Unbekannt</option>
                                 </select>
                             </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-500 mb-1">Geburtsdatum</label>
-                                <input type="date" id="p-birth" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm">
-                            </div>
+                            <div><label class="block text-xs font-medium text-slate-500 mb-1">Geburtsdatum</label><input type="date" id="p-birth" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"></div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-500 mb-1">Rolle / Notiz</label>
-                            <input type="text" id="p-role" placeholder="Z.B. Onkel, Patentante..." class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm">
-                        </div>
+                        <div><label class="block text-xs font-medium text-slate-500 mb-1">Rolle / Notiz</label><input type="text" id="p-role" placeholder="Z.B. Onkel, Patentante..." class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"></div>
                         <div class="flex gap-2 pt-2">
                             <button onclick="savePerson()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2 rounded-md transition-colors">Speichern</button>
-                            <button onclick="resetPersonForm()" class="px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold rounded-md transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                            <button onclick="resetPersonForm()" id="cancel-edit-btn" class="hidden px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold rounded-md transition-colors">Abbrechen</button>
                         </div>
                     </div>
                 </div>
@@ -139,8 +126,7 @@
                                     <th class="px-3 py-3 text-right text-xs font-medium text-slate-500 uppercase">Aktion</th>
                                 </tr>
                             </thead>
-                            <tbody id="person-table-body" class="divide-y divide-slate-100 text-sm">
-                                </tbody>
+                            <tbody id="person-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
                         </table>
                     </div>
                 </div>
@@ -156,9 +142,11 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-500 mb-1">Beziehung</label>
-                        <select id="conn-type" class="px-3 py-2 border border-slate-300 rounded-md text-sm w-40 bg-white font-medium">
+                        <select id="conn-type" class="px-3 py-2 border border-slate-300 rounded-md text-sm w-44 bg-white font-medium">
                             <option value="parent_child">ist Elternteil von</option>
                             <option value="spouse">ist verheiratet mit</option>
+                            <option value="sibling">ist Geschwisterteil von</option>
+                            <option value="aunt_uncle">ist Tante/Onkel von</option>
                         </select>
                     </div>
                     <div>
@@ -167,13 +155,17 @@
                     </div>
                     <button onclick="addConnection()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-bold transition-colors shadow-sm">Verbinden</button>
                 </div>
-                <button onclick="autoLayoutTree()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-bold transition-colors shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Auto-Sortierung</button>
+                <button onclick="document.getElementById('tree-viewport').scrollTo({top: 1750, left: 1500, behavior: 'smooth'})" class="text-slate-500 hover:text-slate-900 text-sm font-bold px-3 py-2"><i class="fa-solid fa-location-crosshairs mr-2"></i>Zur Mitte</button>
             </div>
             
-            <div id="tree-container" class="relative w-full h-[700px] overflow-auto border border-slate-200 rounded-b-xl shadow-inner bg-slate-50">
-                <svg id="tree-svg" class="absolute top-0 left-0 w-full h-full pointer-events-none z-0"></svg>
-                <div id="tree-nodes-layer" class="absolute top-0 left-0 w-full h-full z-10"></div>
+            <div id="tree-viewport">
+                <div id="tree-canvas">
+                    <div id="tree-background-layer" class="absolute top-0 left-0 w-full h-full pointer-events-none z-0"></div>
+                    <svg id="tree-svg" class="absolute top-0 left-0 w-full h-full pointer-events-none z-10"></svg>
+                    <div id="tree-nodes-layer" class="absolute top-0 left-0 w-full h-full z-20"></div>
+                </div>
             </div>
+            <div class="text-xs text-slate-500 mt-2 text-center">Tipp: Ziehe Personen nach oben oder unten. Sie rasten automatisch auf der jeweiligen Generationsebene ein.</div>
         </div>
     </main>
 
@@ -181,11 +173,9 @@
         <div class="absolute top-4 right-4 flex gap-4 z-[110]">
             <button onclick="closeModal()" class="text-white hover:text-red-400 text-3xl transition-colors"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        
         <div class="relative inline-block max-w-full max-h-[90vh]" id="tag-container">
             <img id="modal-img" class="max-w-full max-h-[90vh] object-contain shadow-2xl rounded-sm" onmousedown="startNewTag(event)">
-            </div>
-        
+        </div>
         <div id="new-tag-popup" class="hidden absolute bg-white p-3 rounded-lg shadow-xl border border-slate-200 w-56 z-[120]">
             <label class="block text-xs font-bold text-slate-700 mb-2">Wer ist das?</label>
             <select id="new-tag-select" class="w-full px-2 py-1.5 border border-slate-300 rounded text-sm mb-2"></select>
@@ -196,38 +186,36 @@
         </div>
     </div>
 
-
     <script>
-        // --- GLOBALE VARIABLEN ---
         let persons = [];
         let connections = [];
         let activePhotoId = null;
         let newTagCoords = null;
+        const LEVEL_HEIGHT = 160; // Feste Höhe pro Generationsebene
 
         document.addEventListener('DOMContentLoaded', async () => {
             await loadPersons();
             await loadPhotos();
-            // Starte in der Galerie
             switchTab('gallery');
         });
 
-        // --- NAVIGATION ---
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(b => {
-                b.classList.remove('bg-blue-50', 'text-blue-700');
-                b.classList.add('text-slate-500');
+                b.classList.remove('bg-blue-50', 'text-blue-700'); b.classList.add('text-slate-500');
             });
-            
             document.getElementById('tab-' + tabId).classList.add('active');
             const activeBtn = document.getElementById('nav-' + tabId);
-            activeBtn.classList.remove('text-slate-500');
-            activeBtn.classList.add('bg-blue-50', 'text-blue-700');
-
-            if(tabId === 'tree') loadTree();
+            activeBtn.classList.remove('text-slate-500'); activeBtn.classList.add('bg-blue-50', 'text-blue-700');
+            
+            if(tabId === 'tree') {
+                loadTree();
+                // Beim ersten Öffnen die Kamera in die Mitte der 4000x4000 Zeichenfläche setzen
+                setTimeout(() => document.getElementById('tree-viewport').scrollTo(1500, 1750), 100);
+            }
         }
 
-        // --- 1. PERSONEN VERWALTUNG ---
+        // --- 1. PERSONEN ---
         async function loadPersons() {
             const res = await fetch('/api/persons');
             persons = await res.json();
@@ -239,95 +227,95 @@
             let optionsHTML = '<option value="">Bitte wählen...</option>';
             
             persons.forEach(p => {
-                const icon = p.gender === 'm' ? '<i class="fa-solid fa-mars text-blue-500 w-4"></i>' : 
-                             p.gender === 'f' ? '<i class="fa-solid fa-venus text-pink-500 w-4"></i>' : 
-                                                '<i class="fa-solid fa-genderless text-emerald-500 w-4"></i>';
+                const icon = p.gender === 'm' ? '<i class="fa-solid fa-mars text-blue-500 w-4"></i>' : p.gender === 'f' ? '<i class="fa-solid fa-venus text-pink-500 w-4"></i>' : '<i class="fa-solid fa-genderless text-emerald-500 w-4"></i>';
                 const dateStr = p.birth_date ? p.birth_date.split('-').reverse().join('.') : '-';
                 
                 tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50">
+                    <tr id="row-person-${p.id}" class="hover:bg-slate-50 transition-colors cursor-default">
                         <td class="px-3 py-3 whitespace-nowrap font-medium text-slate-900">${icon} ${p.first_name} ${p.last_name}</td>
                         <td class="px-3 py-3 whitespace-nowrap text-slate-500">${dateStr}</td>
                         <td class="px-3 py-3 text-slate-500 truncate max-w-[150px]">${p.role || ''}</td>
                         <td class="px-3 py-3 whitespace-nowrap text-right">
-                            <button onclick='editPerson(${JSON.stringify(p)})' class="text-blue-600 hover:text-blue-900 mr-3" title="Bearbeiten"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="deletePerson(${p.id})" class="text-red-500 hover:text-red-700" title="Löschen"><i class="fa-solid fa-trash"></i></button>
+                            <button onclick='editPerson(${JSON.stringify(p)})' class="text-blue-600 hover:text-blue-900 mr-3 px-2 py-1"><i class="fa-solid fa-pen"></i> Bearbeiten</button>
+                            <button onclick="deletePerson(${p.id})" class="text-red-500 hover:text-red-700 px-2 py-1"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
                 optionsHTML += `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`;
             });
-
             selects.forEach(s => { if(s) s.innerHTML = optionsHTML; });
         }
 
         async function savePerson() {
             const id = document.getElementById('p-id').value;
             const data = {
-                id: id || null,
-                first_name: document.getElementById('p-first').value.trim(),
-                last_name: document.getElementById('p-last').value.trim(),
-                gender: document.getElementById('p-gender').value,
-                birth_date: document.getElementById('p-birth').value,
-                role: document.getElementById('p-role').value
+                id: id || null, first_name: document.getElementById('p-first').value.trim(),
+                last_name: document.getElementById('p-last').value.trim(), gender: document.getElementById('p-gender').value,
+                birth_date: document.getElementById('p-birth').value, role: document.getElementById('p-role').value
             };
-
             if(!data.first_name || !data.last_name) return alert("Name ist ein Pflichtfeld.");
-
-            const method = id ? 'PUT' : 'POST';
-            await fetch('/api/persons', { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            
+            await fetch('/api/persons', { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
             resetPersonForm();
             await loadPersons();
         }
 
+        // --- BEARBEITUNGSMODUS HIGHLIGHT ---
         function editPerson(p) {
+            // Alle Highlights entfernen
+            document.querySelectorAll('tr[id^="row-person-"]').forEach(tr => tr.classList.remove('edit-mode-row'));
+            
+            // Aktuelle Zeile hervorheben
+            const row = document.getElementById(`row-person-${p.id}`);
+            if(row) row.classList.add('edit-mode-row');
+
+            // Formular füllen
             document.getElementById('p-id').value = p.id;
             document.getElementById('p-first').value = p.first_name;
             document.getElementById('p-last').value = p.last_name;
             document.getElementById('p-gender').value = p.gender || 'd';
             document.getElementById('p-birth').value = p.birth_date || '';
             document.getElementById('p-role').value = p.role || '';
-            document.getElementById('person-form-title').innerText = "Person bearbeiten";
+            
+            // UI anpassen
+            const container = document.getElementById('person-form-container');
+            container.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50');
+            document.getElementById('person-form-title').innerHTML = `<span class="text-blue-600"><i class="fa-solid fa-pen-to-square mr-2"></i>Wird bearbeitet:</span> ${p.first_name}`;
+            document.getElementById('cancel-edit-btn').classList.remove('hidden');
+            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function resetPersonForm() {
+            document.querySelectorAll('tr[id^="row-person-"]').forEach(tr => tr.classList.remove('edit-mode-row'));
+            const container = document.getElementById('person-form-container');
+            container.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50');
+            
             document.getElementById('p-id').value = '';
             document.querySelectorAll('#tab-persons input').forEach(i => i.value = '');
             document.getElementById('p-gender').value = 'm';
             document.getElementById('person-form-title').innerText = "Neue Person anlegen";
+            document.getElementById('cancel-edit-btn').classList.add('hidden');
         }
 
         async function deletePerson(id) {
-            if(confirm("Diese Person wirklich aus der Datenbank, von allen Fotos und aus dem Stammbaum löschen?")) {
+            if(confirm("Diese Person wirklich komplett löschen?")) {
                 await fetch(`/api/persons?id=${id}`, { method: 'DELETE' });
                 await loadPersons();
             }
         }
 
-        // --- 2. MEDIATHEK & UPLOAD ---
+        // --- 2. MEDIATHEK & UPLOAD (Unverändert) ---
         async function uploadPhoto() {
             const fileInput = document.getElementById('fileInput');
             if(!fileInput.files.length) return alert("Bitte wähle ein Bild aus.");
-            
             const btn = event.currentTarget;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Lädt hoch...';
-            btn.disabled = true;
-
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Lädt hoch...'; btn.disabled = true;
             const fd = new FormData();
-            fd.append('file', fileInput.files[0]);
-            fd.append('date_taken', document.getElementById('dateInput').value);
-            fd.append('description', document.getElementById('descInput').value);
-
+            fd.append('file', fileInput.files[0]); fd.append('date_taken', document.getElementById('dateInput').value); fd.append('description', document.getElementById('descInput').value);
             await fetch('/api/photos', { method: 'POST', body: fd });
-            
             fileInput.value = ''; document.getElementById('dateInput').value = ''; document.getElementById('descInput').value = '';
-            btn.innerHTML = '<i class="fa-solid fa-upload mr-2"></i>Foto in die Cloud hochladen';
-            btn.disabled = false;
-            
-            await loadPhotos();
-            switchTab('gallery');
+            btn.innerHTML = '<i class="fa-solid fa-upload mr-2"></i>Foto hochladen'; btn.disabled = false;
+            await loadPhotos(); switchTab('gallery');
         }
 
         async function loadPhotos() {
@@ -335,13 +323,12 @@
             const photos = await res.json();
             const grid = document.getElementById('gallery-grid');
             grid.innerHTML = '';
-            
             photos.forEach(photo => {
                 const dateStr = photo.date_taken ? photo.date_taken.split('-').reverse().join('.') : '';
                 grid.innerHTML += `
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden group relative">
                         <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                            <button onclick="deletePhoto(${photo.id}, event)" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full shadow text-sm flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>
+                            <button onclick="deletePhoto(${photo.id}, event)" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full shadow flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>
                         </div>
                         <div class="h-48 bg-slate-100 cursor-pointer overflow-hidden" onclick="openModal(${photo.id}, '${photo.url}')">
                             <img src="${photo.url}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
@@ -350,134 +337,59 @@
                             <p class="text-xs font-bold text-blue-600 mb-1">${dateStr}</p>
                             <p class="text-sm text-slate-700 line-clamp-2">${escapeHTML(photo.description) || '<i>Keine Beschreibung</i>'}</p>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
         }
+        async function deletePhoto(id, e) { e.stopPropagation(); if(confirm("Foto löschen?")) { await fetch(`/api/photos?id=${id}`, { method: 'DELETE' }); loadPhotos(); } }
 
-        async function deletePhoto(id, e) {
-            e.stopPropagation();
-            if(confirm("Foto mitsamt Markierungen aus Cloudflare löschen?")) {
-                await fetch(`/api/photos?id=${id}`, { method: 'DELETE' });
-                loadPhotos();
-            }
-        }
-
-        // --- 3. BILD-TAGGING (Mit Drag & Delete) ---
-        async function openModal(id, url) {
-            activePhotoId = id;
-            document.getElementById('modal-img').src = url;
-            document.getElementById('photo-modal').classList.remove('hidden');
-            document.getElementById('photo-modal').classList.add('flex');
-            await loadTags();
-        }
-
-        function closeModal() {
-            document.getElementById('photo-modal').classList.add('hidden');
-            document.getElementById('photo-modal').classList.remove('flex');
-            cancelNewTag();
-        }
-
+        // --- 3. BILD-TAGGING ---
+        async function openModal(id, url) { activePhotoId = id; document.getElementById('modal-img').src = url; document.getElementById('photo-modal').classList.remove('hidden'); document.getElementById('photo-modal').classList.add('flex'); await loadTags(); }
+        function closeModal() { document.getElementById('photo-modal').classList.add('hidden'); document.getElementById('photo-modal').classList.remove('flex'); cancelNewTag(); }
         function startNewTag(e) {
             if(e.target.id !== 'modal-img') return;
             const rect = e.target.getBoundingClientRect();
-            newTagCoords = {
-                x: ((e.clientX - rect.left) / rect.width) * 100,
-                y: ((e.clientY - rect.top) / rect.height) * 100
-            };
-            
-            const popup = document.getElementById('new-tag-popup');
-            popup.classList.remove('hidden');
-            
-            // Berechne Position relativ zum Bildcontainer
+            newTagCoords = { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 };
+            const popup = document.getElementById('new-tag-popup'); popup.classList.remove('hidden');
             const containerRect = document.getElementById('tag-container').getBoundingClientRect();
-            popup.style.left = (e.clientX - containerRect.left + 15) + 'px';
-            popup.style.top = (e.clientY - containerRect.top + 15) + 'px';
+            popup.style.left = (e.clientX - containerRect.left + 15) + 'px'; popup.style.top = (e.clientY - containerRect.top + 15) + 'px';
         }
-
-        function cancelNewTag() {
-            document.getElementById('new-tag-popup').classList.add('hidden');
-            newTagCoords = null;
-        }
-
+        function cancelNewTag() { document.getElementById('new-tag-popup').classList.add('hidden'); newTagCoords = null; }
         async function saveTag() {
             const pid = document.getElementById('new-tag-select').value;
             if(!pid || !newTagCoords) return;
-
-            await fetch('/api/tags', {
-                method: 'POST',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ photo_id: activePhotoId, person_id: pid, x_percent: newTagCoords.x, y_percent: newTagCoords.y })
-            });
-            cancelNewTag();
-            loadTags();
+            await fetch('/api/tags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ photo_id: activePhotoId, person_id: pid, x_percent: newTagCoords.x, y_percent: newTagCoords.y }) });
+            cancelNewTag(); loadTags();
         }
-
-        async function deleteTag(tagId) {
-            await fetch(`/api/tags?id=${tagId}`, { method: 'DELETE' });
-            loadTags();
-        }
-
+        async function deleteTag(tagId) { await fetch(`/api/tags?id=${tagId}`, { method: 'DELETE' }); loadTags(); }
         async function loadTags() {
             document.querySelectorAll('.tag-marker').forEach(e => e.remove());
             const res = await fetch(`/api/tags?photoId=${activePhotoId}`);
             const tags = await res.json();
-            
             const container = document.getElementById('tag-container');
             const img = document.getElementById('modal-img');
-            
             tags.forEach(tag => {
-                const marker = document.createElement('div');
-                marker.className = 'tag-marker';
-                marker.style.left = tag.x_percent + '%';
-                marker.style.top = tag.y_percent + '%';
-                
-                marker.innerHTML = `
-                    <button class="tag-delete-btn" onclick="deleteTag(${tag.id})" title="Markierung löschen"><i class="fa-solid fa-xmark"></i></button>
-                    <div class="tag-dot"></div>
-                    <div class="tag-label">${tag.first_name} ${tag.last_name}</div>
-                `;
-
-                // Drag Logik für das Tag
+                const marker = document.createElement('div'); marker.className = 'tag-marker'; marker.style.left = tag.x_percent + '%'; marker.style.top = tag.y_percent + '%';
+                marker.innerHTML = `<button class="tag-delete-btn" onclick="deleteTag(${tag.id})"><i class="fa-solid fa-xmark"></i></button><div class="tag-dot"></div><div class="tag-label">${tag.first_name} ${tag.last_name}</div>`;
                 let isDragging = false;
                 marker.addEventListener('mousedown', (e) => {
-                    if(e.target.closest('button')) return; // Klick auf Löschen ignorieren
-                    isDragging = true;
-                    e.stopPropagation();
-                    
+                    if(e.target.closest('button')) return; isDragging = true; e.stopPropagation();
                     const dragMove = (ev) => {
                         if(!isDragging) return;
                         const rect = img.getBoundingClientRect();
-                        let newX = ((ev.clientX - rect.left) / rect.width) * 100;
-                        let newY = ((ev.clientY - rect.top) / rect.height) * 100;
-                        newX = Math.max(0, Math.min(100, newX)); // In Grenzen halten
-                        newY = Math.max(0, Math.min(100, newY));
-                        marker.style.left = newX + '%';
-                        marker.style.top = newY + '%';
+                        let newX = ((ev.clientX - rect.left) / rect.width) * 100; let newY = ((ev.clientY - rect.top) / rect.height) * 100;
+                        marker.style.left = Math.max(0, Math.min(100, newX)) + '%'; marker.style.top = Math.max(0, Math.min(100, newY)) + '%';
                     };
-                    
                     const dragEnd = async () => {
-                        isDragging = false;
-                        document.removeEventListener('mousemove', dragMove);
-                        document.removeEventListener('mouseup', dragEnd);
-                        
-                        // In DB speichern
-                        await fetch('/api/tags', {
-                            method: 'PUT',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ id: tag.id, x_percent: parseFloat(marker.style.left), y_percent: parseFloat(marker.style.top) })
-                        });
+                        isDragging = false; document.removeEventListener('mousemove', dragMove); document.removeEventListener('mouseup', dragEnd);
+                        await fetch('/api/tags', { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: tag.id, x_percent: parseFloat(marker.style.left), y_percent: parseFloat(marker.style.top) }) });
                     };
-                    
-                    document.addEventListener('mousemove', dragMove);
-                    document.addEventListener('mouseup', dragEnd);
+                    document.addEventListener('mousemove', dragMove); document.addEventListener('mouseup', dragEnd);
                 });
-
                 container.appendChild(marker);
             });
         }
 
-        // --- 4. STAMMBAUM (Dynamisch & Drag) ---
+        // --- 4. STAMMBAUM (Infinite Canvas & Snap-To-Level) ---
         async function loadTree() {
             const [resNodes, resConns] = await Promise.all([fetch('/api/tree'), fetch('/api/connections')]);
             const nodes = await resNodes.json();
@@ -486,15 +398,20 @@
             const layer = document.getElementById('tree-nodes-layer');
             layer.innerHTML = '';
 
-            // Kombiniere Personendaten mit gespeicherten Positionen
+            let minY = 4000, maxY = 0;
+
             const treePersons = persons.map(p => {
                 const nodeData = nodes.find(n => n.person_id === p.id);
                 return { ...p, x: nodeData?.x_pos || null, y: nodeData?.y_pos || null };
             });
 
             treePersons.forEach((p, idx) => {
-                // Wenn noch nie platziert, werfe sie kaskadierend oben links hin
-                if(p.x === null) { p.x = 20 + (idx * 20); p.y = 20 + (idx * 20); }
+                // Wenn noch nie platziert: Werfe sie in die Mitte der Karte
+                if(p.x === null) { p.x = 2000 + (idx * 20); p.y = 2000 + (idx * 20); }
+                
+                // Für den Hintergrund erfassen
+                if (p.y < minY) minY = p.y;
+                if (p.y > maxY) maxY = p.y;
 
                 const el = document.createElement('div');
                 const genderClass = p.gender === 'm' ? 'gender-m' : p.gender === 'f' ? 'gender-f' : 'gender-d';
@@ -503,40 +420,62 @@
                 el.style.left = p.x + 'px';
                 el.style.top = p.y + 'px';
                 
-                el.innerHTML = `
-                    <div class="font-bold text-slate-800 text-sm">${p.first_name} ${p.last_name}</div>
-                    ${p.birth_date ? `<div class="text-[10px] text-slate-500">* ${p.birth_date.split('-')[0]}</div>` : ''}
-                `;
+                el.innerHTML = `<div class="font-bold text-slate-800 text-sm">${p.first_name} ${p.last_name}</div>
+                                ${p.birth_date ? `<div class="text-[10px] text-slate-500">* ${p.birth_date.split('-')[0]}</div>` : ''}`;
 
-                // Dragging Logik (Freies Bewegen, Speichern bei MouseUp)
+                // Dragging Logik mit automatischem Y-Einrasten (Snap-to-Grid)
                 el.addEventListener('mousedown', (e) => {
                     let offsetX = e.clientX - el.getBoundingClientRect().left;
                     let offsetY = e.clientY - el.getBoundingClientRect().top;
-                    const canvasRect = document.getElementById('tree-container').getBoundingClientRect();
+                    const viewport = document.getElementById('tree-viewport');
+                    const canvasRect = document.getElementById('tree-canvas').getBoundingClientRect();
                     
                     const move = (ev) => {
-                        el.style.left = (ev.clientX - canvasRect.left - offsetX + document.getElementById('tree-container').scrollLeft) + 'px';
-                        el.style.top = (ev.clientY - canvasRect.top - offsetY + document.getElementById('tree-container').scrollTop) + 'px';
+                        el.style.left = (ev.clientX - canvasRect.left - offsetX) + 'px';
+                        el.style.top = (ev.clientY - canvasRect.top - offsetY) + 'px';
                         drawTreeLines(); // Linien live updaten
                     };
                     
                     const stop = async () => {
                         document.removeEventListener('mousemove', move);
                         document.removeEventListener('mouseup', stop);
+                        
+                        // SNAP TO LEVEL LOGIK: Raste auf den nächsten Faktor von 160 ein
+                        let currentY = parseFloat(el.style.top);
+                        let snappedY = Math.round(currentY / LEVEL_HEIGHT) * LEVEL_HEIGHT;
+                        el.style.top = snappedY + 'px';
+
                         await fetch('/api/tree', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ person_id: p.id, x_pos: parseFloat(el.style.left), y_pos: parseFloat(el.style.top) })
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ person_id: p.id, x_pos: parseFloat(el.style.left), y_pos: snappedY })
                         });
+                        loadTree(); // Komplett neu zeichnen (für Hintergrundlinien)
                     };
-                    document.addEventListener('mousemove', move);
-                    document.addEventListener('mouseup', stop);
+                    document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop);
                 });
 
                 layer.appendChild(el);
             });
 
+            drawDynamicLevels(minY, maxY);
             drawTreeLines();
+        }
+
+        function drawDynamicLevels(minY, maxY) {
+            const bgLayer = document.getElementById('tree-background-layer');
+            bgLayer.innerHTML = '';
+            
+            // Finde die niedrigste und höchste eingerastete Ebene (inkl. Puffer oben/unten)
+            let startLevel = Math.floor(minY / LEVEL_HEIGHT) - 1;
+            let endLevel = Math.ceil(maxY / LEVEL_HEIGHT) + 1;
+            
+            for (let i = startLevel; i <= endLevel; i++) {
+                const yPos = i * LEVEL_HEIGHT;
+                const line = document.createElement('div');
+                line.className = 'tree-level-bg';
+                line.style.top = (yPos - 20) + 'px'; // Leicht über den Köpfen zeichnen
+                bgLayer.appendChild(line);
+            }
         }
 
         async function addConnection() {
@@ -545,28 +484,23 @@
             const type = document.getElementById('conn-type').value;
 
             if(!from || !to || from === to) return alert("Ungültige Personenauswahl.");
-            
-            await fetch('/api/connections', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ from_person_id: from, to_person_id: to, type })
-            });
+            await fetch('/api/connections', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ from_person_id: from, to_person_id: to, type }) });
             loadTree();
         }
 
-        // Intelligente SVG Linien zeichnen
+        // Intelligente SVG Linien für alle 4 Beziehungstypen
         function drawTreeLines() {
             const svg = document.getElementById('tree-svg');
             svg.innerHTML = '';
 
-            // 1. Zeichne Ehen (Gestrichelt, Horizontal)
-            const spouses = connections.filter(c => c.type === 'spouse');
-            const drawnSpouses = new Set(); // Damit wir wg. Reziprozität nicht doppelt zeichnen
+            const drawnPairs = new Set(); 
 
-            spouses.forEach(c => {
+            connections.forEach(c => {
                 const hash = [c.from_person_id, c.to_person_id].sort().join('-');
-                if(drawnSpouses.has(hash)) return;
-                drawnSpouses.add(hash);
+                
+                // Elternteil zu Kind geht nur in eine Richtung beim Zeichnen
+                if (c.type !== 'child' && drawnPairs.has(hash)) return; 
+                if (c.type !== 'child') drawnPairs.add(hash);
 
                 const p1 = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`);
                 const p2 = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
@@ -577,85 +511,44 @@
                     const x2 = p2.offsetLeft + p2.offsetWidth/2;
                     const y2 = p2.offsetTop + p2.offsetHeight/2;
 
-                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
-                    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-                    line.setAttribute('stroke', '#ec4899'); // Pink
-                    line.setAttribute('stroke-width', '3');
-                    line.setAttribute('stroke-dasharray', '8 4');
-                    svg.appendChild(line);
-                }
-            });
+                    if (c.type === 'spouse') {
+                        // Pink, gestrichelt für Ehe
+                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+                        line.setAttribute('stroke', '#ec4899'); line.setAttribute('stroke-width', '3'); line.setAttribute('stroke-dasharray', '8 4');
+                        svg.appendChild(line);
+                    } 
+                    else if (c.type === 'sibling') {
+                        // Grün, durchgehend für Geschwister
+                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+                        line.setAttribute('stroke', '#10b981'); line.setAttribute('stroke-width', '2.5');
+                        svg.appendChild(line);
+                    }
+                    else if (c.type === 'aunt_uncle') {
+                        // Lila, stark gestrichelt für Tante/Onkel
+                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+                        line.setAttribute('stroke', '#8b5cf6'); line.setAttribute('stroke-width', '2'); line.setAttribute('stroke-dasharray', '4 6');
+                        svg.appendChild(line);
+                    }
+                    else if (c.type === 'child') {
+                        // Dunkelgraue Kurve für Eltern-Kind (Von Elter nach unten, zu Kind nach oben)
+                        const px = p2.offsetLeft + p2.offsetWidth/2; // Elter
+                        const py = p2.offsetTop + p2.offsetHeight;
+                        const cx = p1.offsetLeft + p1.offsetWidth/2; // Kind
+                        const cy = p1.offsetTop;
 
-            // 2. Zeichne Eltern-Kind Linien (Orthogonal/Gewinkelt)
-            const children = connections.filter(c => c.type === 'child'); // to_person = Elter, from_person = Kind
-            
-            children.forEach(c => {
-                const childNode = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`);
-                const parentNode = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
-                
-                if(childNode && parentNode) {
-                    // Startpunkt unten am Elternteil
-                    const px = parentNode.offsetLeft + parentNode.offsetWidth/2;
-                    const py = parentNode.offsetTop + parentNode.offsetHeight;
-                    
-                    // Endpunkt oben am Kind
-                    const cx = childNode.offsetLeft + childNode.offsetWidth/2;
-                    const cy = childNode.offsetTop;
-
-                    // Zeichne eine Kurve (Bezier) oder eckige Linie
-                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    const d = `M ${px} ${py} C ${px} ${py + 40}, ${cx} ${cy - 40}, ${cx} ${cy}`;
-                    
-                    path.setAttribute('d', d);
-                    path.setAttribute('fill', 'none');
-                    path.setAttribute('stroke', '#475569'); // Slate dunkel
-                    path.setAttribute('stroke-width', '2');
-                    svg.appendChild(path);
+                        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        const d = `M ${px} ${py} C ${px} ${py + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
+                        path.setAttribute('d', d); path.setAttribute('fill', 'none'); path.setAttribute('stroke', '#475569'); path.setAttribute('stroke-width', '2');
+                        svg.appendChild(path);
+                    }
                 }
             });
         }
 
-        // Hilfsfunktion gegen XSS
         function escapeHTML(str) { return (str||'').replace(/[&<>'"]/g, t => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[t]||t)); }
-        
-        // Simulierter Auto-Layout Algorithmus (Gruppiert grob nach Generation via Alter)
-        function autoLayoutTree() {
-            if(!confirm("Achtung: Dies überschreibt deine manuell gezogenen Positionen. Fortfahren?")) return;
-            
-            let sortedPersons = [...persons].sort((a,b) => {
-                const yearA = a.birth_date ? parseInt(a.birth_date.split('-')[0]) : 2000;
-                const yearB = b.birth_date ? parseInt(b.birth_date.split('-')[0]) : 2000;
-                return yearA - yearB; // Älteste zuerst
-            });
-
-            let currentY = 50;
-            let currentX = 50;
-            let lastDecade = null;
-
-            sortedPersons.forEach(async (p, index) => {
-                const year = p.birth_date ? parseInt(p.birth_date.split('-')[0]) : 2000;
-                const decade = Math.floor(year / 20); // Gruppiere alle 20 Jahre als eine Generation
-
-                if(lastDecade !== null && decade > lastDecade) {
-                    currentY += 150; // Neue Ebene drunter
-                    currentX = 50;   // Wieder links anfangen
-                }
-                lastDecade = decade;
-
-                // Speichern in DB
-                await fetch('/api/tree', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ person_id: p.id, x_pos: currentX, y_pos: currentY })
-                });
-
-                currentX += 200; // Nächste Person rechts daneben
-                if(currentX > 1000) { currentX = 50; currentY += 80; } // Zeilenumbruch
-            });
-
-            setTimeout(loadTree, 500); // Neuladen nach kurzem Warten
-        }
     </script>
 </body>
 </html>
