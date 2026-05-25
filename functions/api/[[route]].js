@@ -11,7 +11,7 @@ export async function onRequest(context) {
         return new Response(object.body, { headers: { 'Content-Type': object.httpMetadata?.contentType || 'image/jpeg' } });
     }
 
-    // --- 2. PERSONEN (Inkl. Sterbedatum) ---
+    // --- 2. PERSONEN ---
     if (path.startsWith('persons')) {
         if (request.method === 'GET') {
             const { results } = await env.DB.prepare("SELECT * FROM persons ORDER BY last_name ASC, first_name ASC").all();
@@ -76,36 +76,31 @@ export async function onRequest(context) {
         }
         if (request.method === 'POST') {
             const { from_person_id, to_person_id, type } = await request.json();
-            
-            await env.DB.prepare("DELETE FROM connections WHERE (from_person_id=? AND to_person_id=?) OR (from_person_id=? AND to_person_id=?)")
-                .bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
+            await env.DB.prepare("DELETE FROM connections WHERE (from_person_id=? AND to_person_id=?) OR (from_person_id=? AND to_person_id=?)").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
 
             if (type === 'spouse') {
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'spouse'), (?, ?, 'spouse')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
             } 
             else if (type === 'parent_child') {
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent'), (?, ?, 'child')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
-                
                 const siblings = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'sibling'").bind(from_person_id).all();
-                for (let sib of siblings.results) {
-                    await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(sib.to_person_id, to_person_id, to_person_id, sib.to_person_id).run();
-                }
+                for (let sib of siblings.results) await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(sib.to_person_id, to_person_id, to_person_id, sib.to_person_id).run();
             } 
             else if (type === 'sibling') {
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'sibling'), (?, ?, 'sibling')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
-                
                 const children1 = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'parent'").bind(from_person_id).all();
-                for (let child of children1.results) {
-                    await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(to_person_id, child.to_person_id, child.to_person_id, to_person_id).run();
-                }
+                for (let child of children1.results) await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(to_person_id, child.to_person_id, child.to_person_id, to_person_id).run();
                 const children2 = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'parent'").bind(to_person_id).all();
-                for (let child of children2.results) {
-                    await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(from_person_id, child.to_person_id, child.to_person_id, from_person_id).run();
-                }
+                for (let child of children2.results) await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(from_person_id, child.to_person_id, child.to_person_id, from_person_id).run();
             } 
             else if (type === 'aunt_uncle') {
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
             }
+            return new Response(JSON.stringify({ success: true }));
+        }
+        if (request.method === 'DELETE') {
+            const id = url.searchParams.get('id');
+            await env.DB.prepare("DELETE FROM connections WHERE id = ?").bind(id).run();
             return new Response(JSON.stringify({ success: true }));
         }
     }
@@ -143,6 +138,11 @@ export async function onRequest(context) {
         if (request.method === 'POST') {
             const data = await request.json();
             await env.DB.prepare(`INSERT INTO tree_nodes (person_id, x_pos, y_pos) VALUES (?, ?, ?) ON CONFLICT(person_id) DO UPDATE SET x_pos=excluded.x_pos, y_pos=excluded.y_pos`).bind(data.person_id, data.x_pos, data.y_pos).run();
+            return new Response(JSON.stringify({ success: true }));
+        }
+        if (request.method === 'DELETE') {
+            const id = url.searchParams.get('id');
+            await env.DB.prepare("DELETE FROM tree_nodes WHERE person_id = ?").bind(id).run();
             return new Response(JSON.stringify({ success: true }));
         }
     }
