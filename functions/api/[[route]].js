@@ -68,7 +68,7 @@ export async function onRequest(context) {
         }
     }
 
-    // --- 4. BEZIEHUNGEN (Erweitert) ---
+    // --- 4. BEZIEHUNGEN (Mit Autopopulation für Tanten/Onkel) ---
     if (path.startsWith('connections')) {
         if (request.method === 'GET') {
             const { results } = await env.DB.prepare("SELECT * FROM connections").all();
@@ -83,12 +83,31 @@ export async function onRequest(context) {
 
             if (type === 'spouse') {
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'spouse'), (?, ?, 'spouse')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
-            } else if (type === 'parent_child') {
+            } 
+            else if (type === 'parent_child') {
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent'), (?, ?, 'child')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
-            } else if (type === 'sibling') {
+                
+                // AUTOMATIK: Geschwister des Elternteils (from) werden Tante/Onkel des Kindes (to)
+                const siblings = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'sibling'").bind(from_person_id).all();
+                for (let sib of siblings.results) {
+                    await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(sib.to_person_id, to_person_id, to_person_id, sib.to_person_id).run();
+                }
+            } 
+            else if (type === 'sibling') {
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'sibling'), (?, ?, 'sibling')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
-            } else if (type === 'aunt_uncle') {
-                // Von = Tante/Onkel, Zu = Neffe/Nichte
+                
+                // AUTOMATIK: Kinder von Geschwister 1 (from) -> Geschwister 2 (to) wird Onkel/Tante
+                const children1 = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'parent'").bind(from_person_id).all();
+                for (let child of children1.results) {
+                    await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(to_person_id, child.to_person_id, child.to_person_id, to_person_id).run();
+                }
+                // AUTOMATIK: Kinder von Geschwister 2 (to) -> Geschwister 1 (from) wird Onkel/Tante
+                const children2 = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'parent'").bind(to_person_id).all();
+                for (let child of children2.results) {
+                    await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(from_person_id, child.to_person_id, child.to_person_id, from_person_id).run();
+                }
+            } 
+            else if (type === 'aunt_uncle') {
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle'), (?, ?, 'niece_nephew')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
             }
             return new Response(JSON.stringify({ success: true }));
