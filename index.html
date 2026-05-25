@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Familienarchiv Haverkock</title>
+    <title>Familienarchiv Haverkock&Hünteler</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -19,7 +19,6 @@
         .tag-delete-btn { position: absolute; top: -10px; right: -25px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 10px; cursor: pointer; display: none; align-items: center; justify-content: center; }
         .tag-marker:hover .tag-delete-btn { display: flex; }
 
-        /* Stammbaum Infinite Canvas */
         #tree-viewport { position: relative; width: 100%; height: 750px; overflow: auto; border: 1px solid #cbd5e1; border-radius: 0 0 12px 12px; background-color: #f8fafc; }
         #tree-canvas { position: absolute; top: 0; left: 0; width: 4000px; height: 4000px; }
         .tree-level-bg { position: absolute; width: 100%; height: 1px; border-top: 2px dashed #cbd5e1; }
@@ -29,7 +28,6 @@
         .gender-f { border-color: #ec4899; } 
         .gender-d { border-color: #10b981; }
         
-        /* Tooltip & Line Hover Helper */
         .tree-line { cursor: help; transition: stroke-width 0.2s; pointer-events: stroke; }
         .tree-line:hover { filter: drop-shadow(0 0 3px rgba(0,0,0,0.4)); }
 
@@ -56,7 +54,6 @@
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
         <div id="tab-gallery" class="tab-content active">
             <div class="flex justify-between items-end mb-6">
                 <div>
@@ -71,21 +68,10 @@
             <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
                 <h2 class="text-2xl font-bold text-slate-900 mb-6">Neues Foto hinzufügen</h2>
                 <div class="space-y-5">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Bilddatei</label>
-                        <input type="file" id="fileInput" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Aufnahmedatum</label>
-                        <input type="date" id="dateInput" class="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Beschreibung</label>
-                        <textarea id="descInput" rows="3" placeholder="Z.B. Sommerurlaub 1995, Taufe..." class="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></textarea>
-                    </div>
-                    <button onclick="uploadPhoto()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-sm">
-                        <i class="fa-solid fa-upload mr-2"></i>Foto hochladen
-                    </button>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Bilddatei</label><input type="file" id="fileInput" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Aufnahmedatum</label><input type="date" id="dateInput" class="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Beschreibung</label><textarea id="descInput" rows="3" placeholder="Z.B. Sommerurlaub 1995, Taufe..." class="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></textarea></div>
+                    <button onclick="uploadPhoto()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-sm"><i class="fa-solid fa-upload mr-2"></i>Foto hochladen</button>
                 </div>
             </div>
         </div>
@@ -100,14 +86,15 @@
                             <div><label class="block text-xs font-medium text-slate-500 mb-1">Vorname</label><input type="text" id="p-first" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"></div>
                             <div><label class="block text-xs font-medium text-slate-500 mb-1">Nachname</label><input type="text" id="p-last" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"></div>
                         </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Geschlecht</label>
+                            <select id="p-gender" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white">
+                                <option value="m">Männlich</option><option value="f">Weiblich</option><option value="d">Divers/Unbekannt</option>
+                            </select>
+                        </div>
                         <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-slate-500 mb-1">Geschlecht</label>
-                                <select id="p-gender" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white">
-                                    <option value="m">Männlich</option><option value="f">Weiblich</option><option value="d">Divers/Unbekannt</option>
-                                </select>
-                            </div>
                             <div><label class="block text-xs font-medium text-slate-500 mb-1">Geburtsdatum</label><input type="date" id="p-birth" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"></div>
+                            <div><label class="block text-xs font-medium text-slate-500 mb-1">Sterbedatum</label><input type="date" id="p-death" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"></div>
                         </div>
                         <div><label class="block text-xs font-medium text-slate-500 mb-1">Rolle / Notiz</label><input type="text" id="p-role" placeholder="Z.B. Onkel, Patentante..." class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"></div>
                         <div class="flex gap-2 pt-2">
@@ -124,7 +111,7 @@
                             <thead>
                                 <tr>
                                     <th class="px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase">Name</th>
-                                    <th class="px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase">Geboren</th>
+                                    <th class="px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase">Zeitraum</th>
                                     <th class="px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase">Notiz</th>
                                     <th class="px-3 py-3 text-right text-xs font-medium text-slate-500 uppercase">Aktion</th>
                                 </tr>
@@ -139,10 +126,7 @@
         <div id="tab-tree" class="tab-content">
             <div class="bg-white p-4 rounded-t-xl border border-b-0 border-slate-200 flex flex-wrap gap-4 items-end justify-between">
                 <div class="flex gap-2 items-end flex-wrap">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1">Person 1</label>
-                        <select id="conn-from" class="px-3 py-2 border border-slate-300 rounded-md text-sm w-48 bg-white"></select>
-                    </div>
+                    <div><label class="block text-xs font-medium text-slate-500 mb-1">Person 1</label><select id="conn-from" class="px-3 py-2 border border-slate-300 rounded-md text-sm w-48 bg-white"></select></div>
                     <div>
                         <label class="block text-xs font-medium text-slate-500 mb-1">Beziehung</label>
                         <select id="conn-type" class="px-3 py-2 border border-slate-300 rounded-md text-sm w-44 bg-white font-medium">
@@ -152,10 +136,7 @@
                             <option value="aunt_uncle">ist Tante/Onkel von</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1">Person 2</label>
-                        <select id="conn-to" class="px-3 py-2 border border-slate-300 rounded-md text-sm w-48 bg-white"></select>
-                    </div>
+                    <div><label class="block text-xs font-medium text-slate-500 mb-1">Person 2</label><select id="conn-to" class="px-3 py-2 border border-slate-300 rounded-md text-sm w-48 bg-white"></select></div>
                     <button onclick="addConnection()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-bold transition-colors shadow-sm">Verbinden</button>
                 </div>
                 <button onclick="document.getElementById('tree-viewport').scrollTo({top: 1750, left: 1500, behavior: 'smooth'})" class="text-slate-500 hover:text-slate-900 text-sm font-bold px-3 py-2"><i class="fa-solid fa-location-crosshairs mr-2"></i>Zur Mitte</button>
@@ -168,17 +149,13 @@
                     <div id="tree-nodes-layer" class="absolute top-0 left-0 w-full h-full z-20 pointer-events-none"></div>
                 </div>
             </div>
-            <div class="text-xs text-slate-500 mt-2 text-center">Tipp: Fahre mit der Maus über die Linien, um die Beziehungsart zu sehen. Personen rasten automatisch beim Ziehen ein.</div>
+            <div class="text-xs text-slate-500 mt-2 text-center">Tipp: Ehepartner schnappen beim Verbinden automatisch nebeneinander. Gemeinsame Kinder erhalten eine gebündelte Linie.</div>
         </div>
     </main>
 
     <div id="photo-modal" class="fixed inset-0 bg-black/95 hidden z-[100] flex-col items-center justify-center p-4">
-        <div class="absolute top-4 right-4 flex gap-4 z-[110]">
-            <button onclick="closeModal()" class="text-white hover:text-red-400 text-3xl transition-colors"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="relative inline-block max-w-full max-h-[90vh]" id="tag-container">
-            <img id="modal-img" class="max-w-full max-h-[90vh] object-contain shadow-2xl rounded-sm" onmousedown="startNewTag(event)">
-        </div>
+        <div class="absolute top-4 right-4 flex gap-4 z-[110]"><button onclick="closeModal()" class="text-white hover:text-red-400 text-3xl transition-colors"><i class="fa-solid fa-xmark"></i></button></div>
+        <div class="relative inline-block max-w-full max-h-[90vh]" id="tag-container"><img id="modal-img" class="max-w-full max-h-[90vh] object-contain shadow-2xl rounded-sm" onmousedown="startNewTag(event)"></div>
         <div id="new-tag-popup" class="hidden absolute bg-white p-3 rounded-lg shadow-xl border border-slate-200 w-56 z-[120]">
             <label class="block text-xs font-bold text-slate-700 mb-2">Wer ist das?</label>
             <select id="new-tag-select" class="w-full px-2 py-1.5 border border-slate-300 rounded text-sm mb-2"></select>
@@ -230,12 +207,14 @@
             
             persons.forEach(p => {
                 const icon = p.gender === 'm' ? '<i class="fa-solid fa-mars text-blue-500 w-4"></i>' : p.gender === 'f' ? '<i class="fa-solid fa-venus text-pink-500 w-4"></i>' : '<i class="fa-solid fa-genderless text-emerald-500 w-4"></i>';
-                const dateStr = p.birth_date ? p.birth_date.split('-').reverse().join('.') : '-';
+                const bYear = p.birth_date ? p.birth_date.split('-')[0] : '';
+                const dYear = p.death_date ? p.death_date.split('-')[0] : '';
+                const lifeStr = (bYear || dYear) ? `${bYear ? '*'+bYear : ''} ${dYear ? ' - †'+dYear : ''}` : '-';
                 
                 tbody.innerHTML += `
                     <tr id="row-person-${p.id}" class="hover:bg-slate-50 transition-colors cursor-default">
                         <td class="px-3 py-3 whitespace-nowrap font-medium text-slate-900">${icon} ${p.first_name} ${p.last_name}</td>
-                        <td class="px-3 py-3 whitespace-nowrap text-slate-500">${dateStr}</td>
+                        <td class="px-3 py-3 whitespace-nowrap text-slate-500">${lifeStr}</td>
                         <td class="px-3 py-3 text-slate-500 truncate max-w-[150px]">${p.role || ''}</td>
                         <td class="px-3 py-3 whitespace-nowrap text-right">
                             <button onclick='editPerson(${JSON.stringify(p)})' class="text-blue-600 hover:text-blue-900 mr-3 px-2 py-1"><i class="fa-solid fa-pen"></i> Bearbeiten</button>
@@ -253,7 +232,8 @@
             const data = {
                 id: id || null, first_name: document.getElementById('p-first').value.trim(),
                 last_name: document.getElementById('p-last').value.trim(), gender: document.getElementById('p-gender').value,
-                birth_date: document.getElementById('p-birth').value, role: document.getElementById('p-role').value
+                birth_date: document.getElementById('p-birth').value, death_date: document.getElementById('p-death').value, 
+                role: document.getElementById('p-role').value
             };
             if(!data.first_name || !data.last_name) return alert("Name ist ein Pflichtfeld.");
             await fetch('/api/persons', { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
@@ -271,6 +251,7 @@
             document.getElementById('p-last').value = p.last_name;
             document.getElementById('p-gender').value = p.gender || 'd';
             document.getElementById('p-birth').value = p.birth_date || '';
+            document.getElementById('p-death').value = p.death_date || '';
             document.getElementById('p-role').value = p.role || '';
             
             const container = document.getElementById('person-form-container');
@@ -291,12 +272,7 @@
             document.getElementById('cancel-edit-btn').classList.add('hidden');
         }
 
-        async function deletePerson(id) {
-            if(confirm("Diese Person wirklich komplett löschen?")) {
-                await fetch(`/api/persons?id=${id}`, { method: 'DELETE' });
-                await loadPersons();
-            }
-        }
+        async function deletePerson(id) { if(confirm("Diese Person wirklich komplett löschen?")) { await fetch(`/api/persons?id=${id}`, { method: 'DELETE' }); await loadPersons(); } }
 
         // --- 2. MEDIATHEK ---
         async function uploadPhoto() {
@@ -311,26 +287,16 @@
             btn.innerHTML = '<i class="fa-solid fa-upload mr-2"></i>Foto hochladen'; btn.disabled = false;
             await loadPhotos(); switchTab('gallery');
         }
-
         async function loadPhotos() {
-            const res = await fetch('/api/photos');
-            const photos = await res.json();
-            const grid = document.getElementById('gallery-grid');
-            grid.innerHTML = '';
+            const res = await fetch('/api/photos'); const photos = await res.json();
+            const grid = document.getElementById('gallery-grid'); grid.innerHTML = '';
             photos.forEach(photo => {
                 const dateStr = photo.date_taken ? photo.date_taken.split('-').reverse().join('.') : '';
                 grid.innerHTML += `
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden group relative">
-                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                            <button onclick="deletePhoto(${photo.id}, event)" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full shadow flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                        <div class="h-48 bg-slate-100 cursor-pointer overflow-hidden" onclick="openModal(${photo.id}, '${photo.url}')">
-                            <img src="${photo.url}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
-                        </div>
-                        <div class="p-4">
-                            <p class="text-xs font-bold text-blue-600 mb-1">${dateStr}</p>
-                            <p class="text-sm text-slate-700 line-clamp-2">${escapeHTML(photo.description) || '<i>Keine Beschreibung</i>'}</p>
-                        </div>
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"><button onclick="deletePhoto(${photo.id}, event)" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full shadow flex items-center justify-center"><i class="fa-solid fa-trash"></i></button></div>
+                        <div class="h-48 bg-slate-100 cursor-pointer overflow-hidden" onclick="openModal(${photo.id}, '${photo.url}')"><img src="${photo.url}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"></div>
+                        <div class="p-4"><p class="text-xs font-bold text-blue-600 mb-1">${dateStr}</p><p class="text-sm text-slate-700 line-clamp-2">${escapeHTML(photo.description) || '<i>Keine Beschreibung</i>'}</p></div>
                     </div>`;
             });
         }
@@ -341,26 +307,22 @@
         function closeModal() { document.getElementById('photo-modal').classList.add('hidden'); document.getElementById('photo-modal').classList.remove('flex'); cancelNewTag(); }
         function startNewTag(e) {
             if(e.target.id !== 'modal-img') return;
-            const rect = e.target.getBoundingClientRect();
-            newTagCoords = { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 };
+            const rect = e.target.getBoundingClientRect(); newTagCoords = { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 };
             const popup = document.getElementById('new-tag-popup'); popup.classList.remove('hidden');
             const containerRect = document.getElementById('tag-container').getBoundingClientRect();
             popup.style.left = (e.clientX - containerRect.left + 15) + 'px'; popup.style.top = (e.clientY - containerRect.top + 15) + 'px';
         }
         function cancelNewTag() { document.getElementById('new-tag-popup').classList.add('hidden'); newTagCoords = null; }
         async function saveTag() {
-            const pid = document.getElementById('new-tag-select').value;
-            if(!pid || !newTagCoords) return;
+            const pid = document.getElementById('new-tag-select').value; if(!pid || !newTagCoords) return;
             await fetch('/api/tags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ photo_id: activePhotoId, person_id: pid, x_percent: newTagCoords.x, y_percent: newTagCoords.y }) });
             cancelNewTag(); loadTags();
         }
         async function deleteTag(tagId) { await fetch(`/api/tags?id=${tagId}`, { method: 'DELETE' }); loadTags(); }
         async function loadTags() {
             document.querySelectorAll('.tag-marker').forEach(e => e.remove());
-            const res = await fetch(`/api/tags?photoId=${activePhotoId}`);
-            const tags = await res.json();
-            const container = document.getElementById('tag-container');
-            const img = document.getElementById('modal-img');
+            const res = await fetch(`/api/tags?photoId=${activePhotoId}`); const tags = await res.json();
+            const container = document.getElementById('tag-container'); const img = document.getElementById('modal-img');
             tags.forEach(tag => {
                 const marker = document.createElement('div'); marker.className = 'tag-marker'; marker.style.left = tag.x_percent + '%'; marker.style.top = tag.y_percent + '%';
                 marker.innerHTML = `<button class="tag-delete-btn" onclick="deleteTag(${tag.id})"><i class="fa-solid fa-xmark"></i></button><div class="tag-dot"></div><div class="tag-label">${tag.first_name} ${tag.last_name}</div>`;
@@ -368,8 +330,7 @@
                 marker.addEventListener('mousedown', (e) => {
                     if(e.target.closest('button')) return; isDragging = true; e.stopPropagation();
                     const dragMove = (ev) => {
-                        if(!isDragging) return;
-                        const rect = img.getBoundingClientRect();
+                        if(!isDragging) return; const rect = img.getBoundingClientRect();
                         let newX = ((ev.clientX - rect.left) / rect.width) * 100; let newY = ((ev.clientY - rect.top) / rect.height) * 100;
                         marker.style.left = Math.max(0, Math.min(100, newX)) + '%'; marker.style.top = Math.max(0, Math.min(100, newY)) + '%';
                     };
@@ -383,7 +344,7 @@
             });
         }
 
-        // --- 4. STAMMBAUM (Mit Auto-Platzierung) ---
+        // --- 4. STAMMBAUM ---
         async function loadTree() {
             const [resNodes, resConns] = await Promise.all([fetch('/api/tree'), fetch('/api/connections')]);
             const nodes = await resNodes.json();
@@ -408,11 +369,14 @@
                 const genderClass = p.gender === 'm' ? 'gender-m' : p.gender === 'f' ? 'gender-f' : 'gender-d';
                 el.className = `tree-node ${genderClass} pointer-events-auto`;
                 el.dataset.id = p.id;
-                el.style.left = p.x + 'px';
-                el.style.top = p.y + 'px';
+                el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
                 
-                el.innerHTML = `<div class="font-bold text-slate-800 text-sm">${p.first_name} ${p.last_name}</div>
-                                ${p.birth_date ? `<div class="text-[10px] text-slate-500">* ${p.birth_date.split('-')[0]}</div>` : ''}`;
+                const bYear = p.birth_date ? p.birth_date.split('-')[0] : '';
+                const dYear = p.death_date ? p.death_date.split('-')[0] : '';
+                let lifeStr = '';
+                if(bYear || dYear) lifeStr = `<div class="text-[10px] text-slate-500">${bYear ? '*'+bYear : ''} ${dYear ? '†'+dYear : ''}</div>`;
+
+                el.innerHTML = `<div class="font-bold text-slate-800 text-sm">${p.first_name} ${p.last_name}</div>${lifeStr}`;
 
                 el.addEventListener('mousedown', (e) => {
                     let offsetX = e.clientX - el.getBoundingClientRect().left;
@@ -426,9 +390,7 @@
                     };
                     
                     const stop = async () => {
-                        document.removeEventListener('mousemove', move);
-                        document.removeEventListener('mouseup', stop);
-                        
+                        document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
                         let currentY = parseFloat(el.style.top);
                         let snappedY = Math.round(currentY / LEVEL_HEIGHT) * LEVEL_HEIGHT;
                         el.style.top = snappedY + 'px';
@@ -441,24 +403,16 @@
                     };
                     document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop);
                 });
-
                 layer.appendChild(el);
             });
-
-            drawDynamicLevels(minY, maxY);
-            drawTreeLines();
+            drawDynamicLevels(minY, maxY); drawTreeLines();
         }
 
         function drawDynamicLevels(minY, maxY) {
-            const bgLayer = document.getElementById('tree-background-layer');
-            bgLayer.innerHTML = '';
-            let startLevel = Math.floor(minY / LEVEL_HEIGHT) - 1;
-            let endLevel = Math.ceil(maxY / LEVEL_HEIGHT) + 1;
+            const bgLayer = document.getElementById('tree-background-layer'); bgLayer.innerHTML = '';
+            let startLevel = Math.floor(minY / LEVEL_HEIGHT) - 1; let endLevel = Math.ceil(maxY / LEVEL_HEIGHT) + 1;
             for (let i = startLevel; i <= endLevel; i++) {
-                const line = document.createElement('div');
-                line.className = 'tree-level-bg';
-                line.style.top = (i * LEVEL_HEIGHT - 20) + 'px'; 
-                bgLayer.appendChild(line);
+                const line = document.createElement('div'); line.className = 'tree-level-bg'; line.style.top = (i * LEVEL_HEIGHT - 20) + 'px'; bgLayer.appendChild(line);
             }
         }
 
@@ -469,39 +423,28 @@
 
             if(!from || !to || from === to) return alert("Ungültige Personenauswahl.");
 
-            // INTELLIGENTE ERSTPLATZIERUNG
+            // INTELLIGENTE PLATZIERUNG UND MORPHING FÜR EHEPARTNER
             const resTree = await fetch('/api/tree');
             const currentNodes = await resTree.json();
             
-            const isFromNew = !currentNodes.find(n => n.person_id == from);
-            const isToNew = !currentNodes.find(n => n.person_id == to);
-            
             const fromNode = currentNodes.find(n => n.person_id == from) || { x_pos: 2000, y_pos: 2000 };
-            const toNode = currentNodes.find(n => n.person_id == to) || { x_pos: 2000, y_pos: 2000 };
+            const isToNew = !currentNodes.find(n => n.person_id == to);
 
-            if (isToNew && !isFromNew) {
-                let nX = fromNode.x_pos; let nY = fromNode.y_pos;
-                if(type === 'parent_child') { nY += LEVEL_HEIGHT; } else if(type === 'spouse') { nX += 180; } else if(type === 'sibling') { nX += 160; } else if(type === 'aunt_uncle') { nX += 160; nY += LEVEL_HEIGHT; }
+            if (type === 'spouse') {
+                // EHEPARTNER: IMMER SOFORT ZUSAMMEN MORPHEN
+                const nX = fromNode.x_pos + 180; const nY = fromNode.y_pos;
                 await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: to, x_pos: nX, y_pos: nY }) });
             } 
-            else if (isFromNew && !isToNew) {
-                let nX = toNode.x_pos; let nY = toNode.y_pos;
-                if(type === 'parent_child') { nY -= LEVEL_HEIGHT; } else if(type === 'spouse') { nX -= 180; } else if(type === 'sibling') { nX -= 160; } else if(type === 'aunt_uncle') { nX -= 160; nY -= LEVEL_HEIGHT; }
-                await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: from, x_pos: nX, y_pos: nY }) });
-            } 
-            else if (isFromNew && isToNew) {
-                await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: from, x_pos: 2000, y_pos: 2000 }) });
-                let nX = 2000; let nY = 2000;
-                if(type === 'parent_child') { nY += LEVEL_HEIGHT; } else if(type === 'spouse') { nX += 180; } else if(type === 'sibling') { nX += 160; } else if(type === 'aunt_uncle') { nX += 160; nY += LEVEL_HEIGHT; }
+            else if (isToNew) {
+                let nX = fromNode.x_pos; let nY = fromNode.y_pos;
+                if(type === 'parent_child') { nY += LEVEL_HEIGHT; } else if(type === 'sibling') { nX += 160; } else if(type === 'aunt_uncle') { nX += 160; nY += LEVEL_HEIGHT; }
                 await fetch('/api/tree', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ person_id: to, x_pos: nX, y_pos: nY }) });
             }
 
-            // Verbindung in der Datenbank anlegen (mit Autopopulation)
             await fetch('/api/connections', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ from_person_id: from, to_person_id: to, type }) });
             loadTree();
         }
 
-        // --- SVG TOOLTIP HELPER ---
         function appendTooltip(element, text) {
             const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
             title.textContent = "Beziehung: " + text;
@@ -511,7 +454,25 @@
         function drawTreeLines() {
             const svg = document.getElementById('tree-svg');
             svg.innerHTML = '';
+            
+            // MAP: Wer sind die Eltern von Kind X?
+            const parentMap = {}; 
+            // MAP: Wer ist mit wem verheiratet?
+            const spousesMap = {}; 
+
+            connections.forEach(c => {
+                if (c.type === 'child') {
+                    if (!parentMap[c.from_person_id]) parentMap[c.from_person_id] = new Set();
+                    parentMap[c.from_person_id].add(c.to_person_id);
+                }
+                if (c.type === 'spouse') {
+                    if (!spousesMap[c.from_person_id]) spousesMap[c.from_person_id] = new Set();
+                    spousesMap[c.from_person_id].add(c.to_person_id);
+                }
+            });
+
             const drawnPairs = new Set(); 
+            const handledParentLines = new Set(); // Speichert, welche Eltern-Kind-Linien durch gemeinsame Linien ersetzt wurden
 
             connections.forEach(c => {
                 const hash = [c.from_person_id, c.to_person_id].sort().join('-');
@@ -522,11 +483,8 @@
                 const p2 = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
                 
                 if(p1 && p2) {
-                    const x1 = p1.offsetLeft + p1.offsetWidth/2;
-                    const y1 = p1.offsetTop + p1.offsetHeight/2;
-                    const x2 = p2.offsetLeft + p2.offsetWidth/2;
-                    const y2 = p2.offsetTop + p2.offsetHeight/2;
-
+                    const x1 = p1.offsetLeft + p1.offsetWidth/2; const y1 = p1.offsetTop + p1.offsetHeight/2;
+                    const x2 = p2.offsetLeft + p2.offsetWidth/2; const y2 = p2.offsetTop + p2.offsetHeight/2;
                     let el;
 
                     if (c.type === 'spouse') {
@@ -548,17 +506,58 @@
                         appendTooltip(el, 'Tante / Onkel');
                     }
                     else if (c.type === 'child') {
-                        const px = p2.offsetLeft + p2.offsetWidth/2; const py = p2.offsetTop + p2.offsetHeight;
-                        const cx = p1.offsetLeft + p1.offsetWidth/2; const cy = p1.offsetTop;
-                        el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                        const d = `M ${px} ${py} C ${px} ${py + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
-                        el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569');
-                        appendTooltip(el, 'Elternteil -> Kind');
+                        const childId = c.from_person_id; const parentId = c.to_person_id;
+                        const relHash = `${parentId}-${childId}`;
+                        
+                        if (handledParentLines.has(relHash)) return;
+
+                        const parents = Array.from(parentMap[childId] || []);
+                        let jointDrawn = false;
+
+                        // GEMEINSAME LINIE FÜR EHEPARTNER-KINDER
+                        if (parents.length >= 2) {
+                            for (let i = 0; i < parents.length; i++) {
+                                for (let j = i + 1; j < parents.length; j++) {
+                                    if (spousesMap[parents[i]] && spousesMap[parents[i]].has(parents[j])) {
+                                        const domP1 = document.querySelector(`.tree-node[data-id="${parents[i]}"]`);
+                                        const domP2 = document.querySelector(`.tree-node[data-id="${parents[j]}"]`);
+                                        const domC = document.querySelector(`.tree-node[data-id="${childId}"]`);
+                                        
+                                        if (domP1 && domP2 && domC) {
+                                            const jointX = (domP1.offsetLeft + domP1.offsetWidth/2 + domP2.offsetLeft + domP2.offsetWidth/2) / 2;
+                                            const jointY = domP1.offsetTop + domP1.offsetHeight/2; 
+                                            
+                                            const cx = domC.offsetLeft + domC.offsetWidth/2; const cy = domC.offsetTop;
+
+                                            el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                                            const d = `M ${jointX} ${jointY} C ${jointX} ${jointY + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
+                                            el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569');
+                                            appendTooltip(el, 'Gemeinsame Kinder');
+                                            
+                                            handledParentLines.add(`${parents[i]}-${childId}`);
+                                            handledParentLines.add(`${parents[j]}-${childId}`);
+                                            jointDrawn = true; break;
+                                        }
+                                    }
+                                }
+                                if (jointDrawn) break;
+                            }
+                        }
+
+                        // STANDARD-LINIE FÜR ALLEINERZIEHENDE
+                        if (!jointDrawn) {
+                            const px = p2.offsetLeft + p2.offsetWidth/2; const py = p2.offsetTop + p2.offsetHeight;
+                            const cx = p1.offsetLeft + p1.offsetWidth/2; const cy = p1.offsetTop;
+                            el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                            const d = `M ${px} ${py} C ${px} ${py + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
+                            el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569');
+                            appendTooltip(el, 'Elternteil -> Kind');
+                            handledParentLines.add(relHash);
+                        }
                     }
 
                     if (el) {
-                        el.setAttribute('stroke-width', '4'); // Etwas dicker für leichteres Hovern
-                        el.setAttribute('class', 'tree-line');
+                        el.setAttribute('stroke-width', '4'); el.setAttribute('class', 'tree-line');
                         svg.appendChild(el);
                     }
                 }
