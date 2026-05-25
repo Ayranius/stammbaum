@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Familien Archiv & Stammbaum</title>
+    <title>Haverkock Fotos - Ahnenarchiv</title>
     <style>
-        :root { --primary: #2b6cb0; --bg: #f7fafc; --panel: #ffffff; }
+        :root { --primary: #2b6cb0; --bg: #f7fafc; --panel: #ffffff; --danger: #e53e3e; }
         body { font-family: system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #1a202c; }
-        .container { max-width: 1000px; margin: auto; }
+        .container { max-width: 1100px; margin: auto; }
         
         /* Navigation Tabs */
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
@@ -16,93 +16,140 @@
         .tab-content { display: none; background: var(--panel); padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .tab-content.active { display: block; }
 
-        /* Forms & Inputs */
+        /* Forms & Layouts */
         input, select, button { padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #cbd5e0; width: 100%; box-sizing: border-box; }
-        button.action-btn { background: var(--primary); color: white; cursor: pointer; border: none; }
+        button.action-btn { background: var(--primary); color: white; cursor: pointer; border: none; font-weight: bold;}
         button.action-btn:hover { background: #2c5282; }
+        button.delete-inline { background: var(--danger); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; width: auto; font-size: 12px;}
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
 
-        /* Photo Gallery & Tagging */
+        /* Photo Gallery */
         .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
-        .photo-card img { width: 100%; border-radius: 8px; cursor: pointer; object-fit: cover; height: 200px; }
-        
-        /* Fullscreen Photo Tagger */
-        #photo-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index: 100; padding: 20px; box-sizing: border-box; flex-direction: column; align-items: center; }
-        .image-container { position: relative; max-width: 100%; max-height: 80vh; display: inline-block; }
-        .image-container img { max-height: 80vh; max-width: 100%; display: block; }
-        .tag-marker { position: absolute; width: 20px; height: 20px; background: red; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid white; cursor: pointer; }
-        .tag-label { position: absolute; background: white; padding: 2px 6px; border-radius: 4px; font-size: 12px; transform: translate(-50%, 15px); white-space: nowrap; font-weight: bold;}
-        
-        /* Popup for new tag */
-        #tag-popup { display: none; position: absolute; background: white; padding: 10px; border-radius: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 101; }
+        .photo-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; background: #fff; position: relative;}
+        .photo-card img { width: 100%; border-radius: 6px; cursor: pointer; object-fit: cover; height: 180px; }
+        .photo-card .del-photo-btn { position: absolute; top: 15px; right: 15px; background: var(--danger); color: white; border: none; border-radius: 4px; padding: 5px; cursor: pointer; font-size: 11px;}
 
-        /* Drag & Drop Tree */
-        #tree-canvas { width: 100%; height: 600px; background: #edf2f7; position: relative; overflow: auto; border-radius: 8px; border: 2px dashed #cbd5e0;}
-        .tree-node { position: absolute; background: white; padding: 10px 15px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: grab; user-select: none; border: 2px solid var(--primary); font-weight: bold;}
+        /* Fullscreen Photo Tagger */
+        #photo-modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index: 100; padding: 20px; box-sizing: border-box; flex-direction: column; align-items: center; }
+        .image-container { position: relative; max-width: 100%; max-height: 80vh; display: inline-block; }
+        .image-container img { max-height: 80vh; max-width: 100%; display: block; border-radius: 4px;}
+        .tag-marker { position: absolute; width: 18px; height: 18px; background: #e53e3e; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid white; }
+        .tag-label { position: absolute; background: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; transform: translate(-50%, 12px); white-space: nowrap; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
+        #tag-popup { display: none; position: absolute; background: white; padding: 10px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); z-index: 101; width: 200px;}
+
+        /* Stammbaum Canvas mit Ebenen */
+        #tree-canvas { width: 100%; height: 620px; background: #f1f5f9; position: relative; overflow: hidden; border-radius: 8px; border: 1px solid #cbd5e0; }
+        .tree-level-zone { position: absolute; left: 0; width: 100%; height: 140px; border-bottom: 1px dashed #cbd5e0; box-sizing: border-box; padding-left: 15px; padding-top: 5px; pointer-events: none;}
+        .tree-level-zone span { font-size: 12px; font-weight: bold; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; }
+        .tree-node { position: absolute; background: white; padding: 8px 16px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.07); cursor: grab; user-select: none; border: 2px solid var(--primary); font-weight: bold; font-size: 13px; text-align: center; z-index: 10; white-space: nowrap;}
         .tree-node:active { cursor: grabbing; }
+        .tree-node em { display: block; font-size: 11px; color: #718096; font-style: normal; font-weight: normal; margin-top: 2px;}
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Familien Archiv</h1>
+    <h1>Haverkock Fotos – Familienarchiv</h1>
     
     <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('photos')">Fotos</button>
-        <button class="tab-btn" onclick="switchTab('persons')">Personen</button>
-        <button class="tab-btn" onclick="switchTab('tree')">Stammbaum</button>
+        <button class="tab-btn active" onclick="switchTab('photos')">Fotos & Dokumente</button>
+        <button class="tab-btn" onclick="switchTab('persons')">Personen-Datenbank</button>
+        <button class="tab-btn" onclick="switchTab('tree')">Interaktiver Stammbaum</button>
     </div>
 
     <div id="tab-photos" class="tab-content active">
-        <h3>Neues Foto hochladen</h3>
-        <input type="file" id="fileInput" accept="image/*">
-        <input type="date" id="dateInput">
-        <input type="text" id="descInput" placeholder="Beschreibung / Ereignis">
-        <button class="action-btn" onclick="uploadPhoto()">Foto hochladen</button>
+        <h3>Neues Foto hinzufügen</h3>
+        <div class="grid-2">
+            <div>
+                <label>Foto-Datei:</label>
+                <input type="file" id="fileInput" accept="image/*">
+                <label>Datum der Aufnahme:</label>
+                <input type="date" id="dateInput">
+            </div>
+            <div>
+                <label>Beschreibung unter dem Foto:</label>
+                <input type="text" id="descInput" placeholder="Z.B. Hochzeit Hans & Erna, Taufe...">
+                <button class="action-btn" style="margin-top: 25px;" onclick="uploadPhoto()">In Cloudspeicher sichern</button>
+            </div>
+        </div>
         
-        <hr style="margin: 20px 0;">
-        <h3>Galerie (Klicken zum Markieren)</h3>
+        <hr style="margin: 25px 0; border: 0; border-top: 1px solid #e2e8f0;">
+        <h3>Mediathek (Klicken zum Öffnen & Personen markieren)</h3>
         <div class="gallery" id="gallery"></div>
     </div>
 
     <div id="tab-persons" class="tab-content">
-        <h3>Neue Person anlegen</h3>
-        <input type="text" id="firstName" placeholder="Vorname">
-        <input type="text" id="lastName" placeholder="Nachname">
-        <input type="text" id="role" placeholder="Rolle (z.B. Vater, Tante, Kind)">
-        <input type="date" id="birthDate">
-        <button class="action-btn" onclick="createPerson()">Person speichern</button>
-        
-        <hr style="margin: 20px 0;">
-        <h3>Gespeicherte Personen</h3>
-        <ul id="person-list"></ul>
+        <div class="grid-2">
+            <div>
+                <h3>Neue Person anlegen</h3>
+                <input type="text" id="firstName" placeholder="Vorname">
+                <input type="text" id="lastName" placeholder="Nachname">
+                <input type="text" id="role" placeholder="Rolle (z.B. Großvater, Tante, Sohn)">
+                <input type="date" id="birthDate">
+                <button class="action-btn" onclick="createPerson()">Person in Cloud speichern</button>
+            </div>
+            <div>
+                <h3>Registrierte Familienmitglieder</h3>
+                <div style="max-height: 350px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px;">
+                    <ul id="person-list" style="padding-left: 20px; margin: 0;"></ul>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="tab-tree" class="tab-content">
-        <h3>Stammbaum (Drag & Drop)</h3>
-        <p>Ziehe die Personen an die richtige Stelle. Die Position wird automatisch gespeichert.</p>
-        <div id="tree-canvas"></div>
+        <div style="background: #edf2f7; padding: 15px; border-radius: 6px; margin-bottom: 15px;" class="grid-2">
+            <div>
+                <h4 style="margin:0 0 10px 0;">Personen verbinden</h4>
+                <div style="display:flex; gap: 10px;">
+                    <select id="conn-from"></select>
+                    <select id="conn-type" style="width: 150px;">
+                        <option value="Kind">ist Kind von</option>
+                        <option value="Eheleute">ist Ehepartner von</option>
+                    </select>
+                    <select id="conn-to"></select>
+                    <button class="action-btn" style="width: auto; white-space: nowrap;" onclick="addConnection()">Verbindung zeichnen</button>
+                </div>
+            </div>
+            <div style="font-size: 12px; color: #4a5568;">
+                <b>Bedienung:</b> Ziehe Personen auf die gewünschte Ebene. Sie rasten beim Loslassen automatisch ein. <br>
+                <em>Orange gestrichelte Linien = Eheleute | Dunkle Linien = Eltern-Kind-Beziehung</em>
+            </div>
+        </div>
+
+        <div id="tree-canvas">
+            <svg id="tree-svg" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></svg>
+            
+            <div class="tree-level-zone" style="top: 0px; background: rgba(255,255,255,0.3);"><span>Ebene 1: Urgroßeltern</span></div>
+            <div class="tree-level-zone" style="top: 150px; background: rgba(255,255,255,0.1);"><span>Ebene 2: Großeltern</span></div>
+            <div class="tree-level-zone" style="top: 300px; background: rgba(255,255,255,0.3);"><span>Ebene 3: Eltern / Onkel / Tanten</span></div>
+            <div class="tree-level-zone" style="top: 450px; height: 170px;"><span>Ebene 4: Kinder / Nichten / Neffen</span></div>
+        </div>
     </div>
 </div>
 
 <div id="photo-modal">
-    <button onclick="closeModal()" style="width: auto; background: white; color: black; margin-bottom: 10px;">Zurück</button>
+    <button onclick="closeModal()" style="width: auto; background: white; color: black; margin-bottom: 15px; font-weight: bold; padding: 8px 20px;">← Schließen</button>
     <div class="image-container" id="tag-container">
         <img id="modal-img" onclick="handleImageClick(event)">
-        </div>
+    </div>
 </div>
 
 <div id="tag-popup">
-    <select id="person-select"></select>
-    <button class="action-btn" onclick="saveTag()">Markieren</button>
-    <button onclick="closeTagPopup()">Abbrechen</button>
+    <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 5px;">Wer ist das?</label>
+    <select id="person-select" style="font-size:12px; padding:5px;"></select>
+    <button class="action-btn" style="padding: 6px; font-size:12px; margin-top:5px;" onclick="saveTag()">Zuweisen</button>
+    <button onclick="closeTagPopup()" style="padding: 4px; font-size:11px; background:none; border:none; color:#718096; cursor:pointer;">Abbrechen</button>
 </div>
 
 <script>
     let currentPersons = [];
     let activePhotoId = null;
     let pendingTagCoords = null;
+    let draggedNode = null;
 
-    // Initialization
     document.addEventListener('DOMContentLoaded', () => {
         loadPersons();
         loadPhotos();
@@ -117,29 +164,45 @@
         if(tabId === 'tree') loadTree();
     }
 
-    // --- PERSONEN LOGIK ---
+    // --- PERSONEN SPEICHERN & LÖSCHEN ---
     async function loadPersons() {
         const res = await fetch('/api/persons');
         currentPersons = await res.json();
+        
         const list = document.getElementById('person-list');
-        const select = document.getElementById('person-select');
+        const selectModal = document.getElementById('person-select');
+        const selectTreeFrom = document.getElementById('conn-from');
+        const selectTreeTo = document.getElementById('conn-to');
         
         list.innerHTML = '';
-        select.innerHTML = '<option value="">Person wählen...</option>';
+        let options = '<option value="">Person wählen...</option>';
         
         currentPersons.forEach(p => {
-            list.innerHTML += `<li><b>${p.first_name} ${p.last_name}</b> (${p.role}) - *${p.birth_date}</li>`;
-            select.innerHTML += `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`;
+            const birth = p.birth_date ? `(* ${p.birth_date.split('-').reverse().join('.')})` : '';
+            list.innerHTML += `<style>#p-${p.id} { margin-bottom: 8px; }</style>
+                <li id="p-${p.id}">
+                    <b>${p.first_name} ${p.last_name}</b> - ${p.role} ${birth} 
+                    <button class="delete-inline" onclick="deletePerson(${p.id})">Löschen</button>
+                </li>`;
+            options += `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`;
         });
+        
+        selectModal.innerHTML = options;
+        selectTreeFrom.innerHTML = options;
+        selectTreeTo.innerHTML = options;
     }
 
     async function createPerson() {
+        const fName = document.getElementById('firstName').value.trim();
+        const lName = document.getElementById('lastName').value.trim();
+        if(!fName || !lName) return alert("Vorname und Nachname sind Pflichtfelder.");
+
         await fetch('/api/persons', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                first_name: document.getElementById('firstName').value,
-                last_name: document.getElementById('lastName').value,
+                first_name: fName,
+                last_name: lName,
                 role: document.getElementById('role').value,
                 birth_date: document.getElementById('birthDate').value
             })
@@ -148,17 +211,26 @@
         document.querySelectorAll('#tab-persons input').forEach(i => i.value = '');
     }
 
-    // --- FOTO LOGIK ---
+    async function deletePerson(id) {
+        if(!confirm("Möchtest du diese Person unwiderruflich löschen? Sie wird auch aus allen Fotos und dem Stammbaum entfernt.")) return;
+        await fetch(`/api/persons?id=${id}`, { method: 'DELETE' });
+        loadPersons();
+    }
+
+    // --- FOTOS HOCHLADEN & LÖSCHEN ---
     async function uploadPhoto() {
-        const file = document.getElementById('fileInput').files[0];
-        if(!file) return alert("Foto fehlt!");
+        const fileInput = document.getElementById('fileInput');
+        if(!fileInput.files || !fileInput.files[0]) return alert("Bitte wähle eine Bilddatei aus.");
         
         const fd = new FormData();
-        fd.append('file', file);
+        fd.append('file', fileInput.files[0]);
         fd.append('description', document.getElementById('descInput').value);
         fd.append('date_taken', document.getElementById('dateInput').value);
 
         await fetch('/api/photos', { method: 'POST', body: fd });
+        fileInput.value = '';
+        document.getElementById('descInput').value = '';
+        document.getElementById('dateInput').value = '';
         loadPhotos();
     }
 
@@ -169,16 +241,24 @@
         gallery.innerHTML = '';
         
         photos.forEach(photo => {
+            const formattedDate = photo.date_taken ? photo.date_taken.split('-').reverse().join('.') : 'Kein Datum';
             gallery.innerHTML += `
-                <div class="photo-card" onclick="openPhotoModal(${photo.id}, '${photo.url}')">
-                    <img src="${photo.url}">
-                    <p><b>${photo.date_taken || 'Kein Datum'}</b><br>${photo.description}</p>
+                <div class="photo-card">
+                    <button class="del-photo-btn" onclick="deletePhoto(${photo.id})">Löschen</button>
+                    <img src="${photo.url}" onclick="openPhotoModal(${photo.id}, '${photo.url}')">
+                    <p style="margin: 8px 0 0 0; font-size:13px;"><b>${formattedDate}</b><br>${escapeHTML(photo.description)}</p>
                 </div>
             `;
         });
     }
 
-    // --- TAGGING LOGIK ---
+    async function deletePhoto(id) {
+        if(!confirm("Soll dieses Foto mitsamt allen Markierungen aus der Cloud gelöscht werden?")) return;
+        await fetch(`/api/photos?id=${id}`, { method: 'DELETE' });
+        loadPhotos();
+    }
+
+    // --- POPUP MARKIERUNGEN (TAGS) ---
     async function openPhotoModal(photoId, url) {
         activePhotoId = photoId;
         document.getElementById('modal-img').src = url;
@@ -195,7 +275,6 @@
         const img = e.target;
         const rect = img.getBoundingClientRect();
         
-        // Berechne Prozentwerte (damit die Marker responsiv bleiben!)
         const x_percent = ((e.clientX - rect.left) / rect.width) * 100;
         const y_percent = ((e.clientY - rect.top) / rect.height) * 100;
         
@@ -204,7 +283,7 @@
         const popup = document.getElementById('tag-popup');
         popup.style.display = 'block';
         popup.style.left = e.clientX + 'px';
-        popup.style.top = e.clientY + 'px';
+        popup.style.top = (e.clientY + window.scrollY) + 'px';
     }
 
     function closeTagPopup() {
@@ -226,19 +305,16 @@
                 y_percent: pendingTagCoords.y
             })
         });
-        
         closeTagPopup();
         renderTags();
     }
 
     async function renderTags() {
-        // Entferne alte Marker
         document.querySelectorAll('.tag-marker, .tag-label').forEach(e => e.remove());
-        
         const res = await fetch(`/api/tags?photoId=${activePhotoId}`);
         const tags = await res.json();
-        
         const container = document.getElementById('tag-container');
+        
         tags.forEach(tag => {
             const marker = document.createElement('div');
             marker.className = 'tag-marker';
@@ -249,41 +325,49 @@
             label.className = 'tag-label';
             label.style.left = tag.x_percent + '%';
             label.style.top = tag.y_percent + '%';
-            label.innerText = tag.first_name;
+            label.innerText = tag.first_name + ' ' + tag.last_name;
 
             container.appendChild(marker);
             container.appendChild(label);
         });
     }
 
-    // --- STAMMBAUM DRAG & DROP LOGIK ---
-    let draggedNode = null;
-    
+    // --- STAMMBAUM MIT FESTEN EBENEN & SVG LINIEN ---
     async function loadTree() {
-        const res = await fetch('/api/tree');
-        const nodes = await res.json();
-        const canvas = document.getElementById('tree-canvas');
-        canvas.innerHTML = '';
+        const resNodes = await fetch('/api/tree');
+        const nodes = await resNodes.json();
+        
+        const resConns = await fetch('/api/connections');
+        const connections = await resConns.json();
 
-        nodes.forEach((n, index) => {
+        const canvas = document.getElementById('tree-canvas');
+        // Vorhandene Personenkarten löschen (behält SVG und Ebenen-Texte)
+        document.querySelectorAll('.tree-node').forEach(e => e.remove());
+
+        nodes.forEach((n, idx) => {
             const el = document.createElement('div');
             el.className = 'tree-node';
-            el.innerText = n.first_name + ' ' + n.last_name;
+            el.innerHTML = `${n.first_name} ${n.last_name} <em>${n.role || ''}</em>`;
             el.dataset.id = n.id;
             
-            // Wenn keine Position vorhanden, setze sie zufällig nebeneinander
-            el.style.left = (n.x_pos || (index * 150 + 20)) + 'px';
-            el.style.top = (n.y_pos || 20) + 'px';
+            // Standard-Ebenenzuweisung falls neu (Ebene 3 als Start)
+            let defaultY = 330; 
+            if(n.y_pos) defaultY = n.y_pos;
+
+            el.style.left = (n.x_pos || (idx * 160 + 40)) + 'px';
+            el.style.top = defaultY + 'px';
             
             el.addEventListener('mousedown', startDrag);
             canvas.appendChild(el);
         });
+
+        drawTreeLines(connections);
     }
 
     function startDrag(e) {
-        draggedNode = e.target;
+        if(e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') return;
+        draggedNode = e.currentTarget;
         
-        // Berechne den Offset der Maus im Element
         const rect = draggedNode.getBoundingClientRect();
         const canvasRect = document.getElementById('tree-canvas').getBoundingClientRect();
         
@@ -292,12 +376,18 @@
 
         function doDrag(ev) {
             if(!draggedNode) return;
-            // Neue Position innerhalb des Canvas
             let x = ev.clientX - canvasRect.left - offsetX;
             let y = ev.clientY - canvasRect.top - offsetY;
             
+            // Grenzen innerhalb des Canvas einhalten
+            if(x < 10) x = 10;
+            if(y < 10) y = 10;
+
             draggedNode.style.left = x + 'px';
             draggedNode.style.top = y + 'px';
+            
+            // Linien während des Ziehens live updaten
+            drawTreeLines([]);
         }
 
         async function stopDrag() {
@@ -305,24 +395,89 @@
             document.removeEventListener('mouseup', stopDrag);
             
             if(draggedNode) {
-                // Position in D1 Datenbank speichern
+                let currentY = parseFloat(draggedNode.style.top);
+                let snappedY = 330; // Fallback Ebene 3
+
+                // Einrast-Logik für die 4 festen Höhenebenen
+                if (currentY < 100) snappedY = 35;       // Ebene 1
+                else if (currentY < 250) snappedY = 185; // Ebene 2
+                else if (currentY < 400) snappedY = 335; // Ebene 3
+                else snappedY = 485;                     // Ebene 4
+
+                draggedNode.style.top = snappedY + 'px';
+
+                // In Cloudflare D1 sichern
                 await fetch('/api/tree', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         person_id: draggedNode.dataset.id,
                         x_pos: parseFloat(draggedNode.style.left),
-                        y_pos: parseFloat(draggedNode.style.top)
+                        y_pos: snappedY
                     })
                 });
                 draggedNode = null;
+                loadTree(); // Komplett neu zeichnen inklusive aller Linien
             }
         }
 
         document.addEventListener('mousemove', doDrag);
         document.addEventListener('mouseup', stopDrag);
     }
-</script>
 
+    async function addConnection() {
+        const fromId = document.getElementById('conn-from').value;
+        const toId = document.getElementById('conn-to').value;
+        const type = document.getElementById('conn-type').value;
+
+        if(!fromId || !toId) return alert("Bitte wähle zwei Personen aus.");
+        if(fromId === toId) return alert("Eine Person kann nicht mit sich selbst verbunden werden.");
+
+        await fetch('/api/connections', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ from_person_id: fromId, to_person_id: toId, type: type })
+        });
+        loadTree();
+    }
+
+    function drawTreeLines(connections) {
+        const svg = document.getElementById('tree-svg');
+        svg.innerHTML = ''; 
+        
+        if(connections.length === 0) return; // Verhindert Fehler während des Dragging-Live-Updates
+
+        connections.forEach(c => {
+            const fromEl = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`);
+            const toEl = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
+            
+            if (fromEl && toEl) {
+                const fromX = fromEl.offsetLeft + (fromEl.offsetWidth / 2);
+                const fromY = fromEl.offsetTop + (fromEl.offsetHeight / 2);
+                const toX = toEl.offsetLeft + (toEl.offsetWidth / 2);
+                const toY = toEl.offsetTop + (toEl.offsetHeight / 2);
+                
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', fromX);
+                line.setAttribute('y1', fromY);
+                line.setAttribute('x2', toX);
+                line.setAttribute('y2', toY);
+                
+                if (c.type === 'Eheleute') {
+                    // Orange, gestrichelte Linie für Partnerschaften
+                    line.setAttribute('style', 'stroke: #ed8936; stroke-width: 3; stroke-dasharray: 6 4;');
+                } else {
+                    // Solide dunkle Linie für Eltern-Kind Beziehungen
+                    line.setAttribute('style', 'stroke: #4a5568; stroke-width: 2.5;');
+                }
+                svg.appendChild(line);
+            }
+        });
+    }
+
+    function escapeHTML(str) {
+        return (str || '').replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+    }
+</script>
 </body>
 </html>
