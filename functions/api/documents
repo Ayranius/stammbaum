@@ -1,0 +1,80 @@
+export async function onRequest(context) {
+    const { request, env } = context;
+    
+    // WICHTIG: Erstelle in Cloudflare ein R2-Bucket und binde es unter dem Namen "DOCS_BUCKET" ein.
+    const bucket = env.DOCS_BUCKET; 
+    
+    if (!bucket) {
+        return new Response("R2 Bucket 'DOCS_BUCKET' nicht gefunden. Bitte in Cloudflare verknüpfen.", { status: 500 });
+    }
+
+    const url = new URL(request.method === 'DELETE' ? request.url : request.url);
+
+    // --- 1. FOTOS AUSLESEN (GET) ---
+    if (request.method === "GET") {
+        const objects = await bucket.list();
+        const docs = [];
+
+        for (const obj of objects.objects) {
+            // Metadaten aus dem R2-Objekt auslesen
+            const description = obj.customMetadata?.description || "Keine Beschreibung";
+            const folder = obj.customMetadata?.folder || "Allgemein";
+            
+            // Temporäre oder direkte URL generieren (Hier nutzen wir base64 oder r2-Inhalt über die API)
+            // Für ein einfaches Pages-Projekt lesen wir die Datei aus und machen eine Data-URL daraus
+            const fileObj = await bucket.get(obj.key);
+            const buffer = await fileObj.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+            const contentType = obj.httpMetadata?.contentType || "image/jpeg";
+
+            docs.push({
+                key: obj.key,
+                url: `data:${contentType};base64,${base64}`,
+                description: description,
+                folder: folder
+            });
+        }
+        
+        // Nach ID (Zeitstempel) sortieren, damit neueste oben stehen
+        docs.sort((a, b) => b.key.localeCompare(a.key));
+
+        return new Response(JSON.stringify(docs), {
+            headers: { "Content-Type": "application/json" }
+        });
+    }
+
+    // --- 2. FOTO HOCHLADEN (POST) ---
+    if (request.method === "POST") {
+        const formData = await request.formData();
+        const file = formData.get('file');
+        const description = formData.get('description');
+        const folder = formData.get('folder');
+
+        if (!file) return new Response("Datei fehlt", { status: 400 });
+
+        const key = `${Date.now()}-${file.name}`;
+        const buffer = await file.arrayBuffer();
+
+        // Datei in Cloudflare R2 hochladen inklusive unserer Ordner/Beschreibungs-Metadaten
+        await bucket.put(key, buffer, {
+            httpMetadata: { contentType: file.type },
+            customMetadata: {
+                description: description,
+                folder: folder
+            }
+        });
+
+        return new Response(JSON.stringify({ success: true }), { status: 200 });
+    }
+
+    // --- 3. FOTO LÖSCHEN (DELETE) ---
+    if (request.method === "DELETE") {
+        const key = url.searchParams.get("key");
+        if (!key) return new Response("Key fehlt", { status: 400 });
+
+        await bucket.delete(key);
+        return new Response(JSON.stringify({ success: true }), { status: 200 });
+    }
+
+    return new Response("Methode nicht erlaubt", { status: 405 });
+}
