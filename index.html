@@ -509,4 +509,153 @@
                 `;
 
                 // Dragging Logik (Freies Bewegen, Speichern bei MouseUp)
-                el.
+                el.addEventListener('mousedown', (e) => {
+                    let offsetX = e.clientX - el.getBoundingClientRect().left;
+                    let offsetY = e.clientY - el.getBoundingClientRect().top;
+                    const canvasRect = document.getElementById('tree-container').getBoundingClientRect();
+                    
+                    const move = (ev) => {
+                        el.style.left = (ev.clientX - canvasRect.left - offsetX + document.getElementById('tree-container').scrollLeft) + 'px';
+                        el.style.top = (ev.clientY - canvasRect.top - offsetY + document.getElementById('tree-container').scrollTop) + 'px';
+                        drawTreeLines(); // Linien live updaten
+                    };
+                    
+                    const stop = async () => {
+                        document.removeEventListener('mousemove', move);
+                        document.removeEventListener('mouseup', stop);
+                        await fetch('/api/tree', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ person_id: p.id, x_pos: parseFloat(el.style.left), y_pos: parseFloat(el.style.top) })
+                        });
+                    };
+                    document.addEventListener('mousemove', move);
+                    document.addEventListener('mouseup', stop);
+                });
+
+                layer.appendChild(el);
+            });
+
+            drawTreeLines();
+        }
+
+        async function addConnection() {
+            const from = document.getElementById('conn-from').value;
+            const to = document.getElementById('conn-to').value;
+            const type = document.getElementById('conn-type').value;
+
+            if(!from || !to || from === to) return alert("Ungültige Personenauswahl.");
+            
+            await fetch('/api/connections', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ from_person_id: from, to_person_id: to, type })
+            });
+            loadTree();
+        }
+
+        // Intelligente SVG Linien zeichnen
+        function drawTreeLines() {
+            const svg = document.getElementById('tree-svg');
+            svg.innerHTML = '';
+
+            // 1. Zeichne Ehen (Gestrichelt, Horizontal)
+            const spouses = connections.filter(c => c.type === 'spouse');
+            const drawnSpouses = new Set(); // Damit wir wg. Reziprozität nicht doppelt zeichnen
+
+            spouses.forEach(c => {
+                const hash = [c.from_person_id, c.to_person_id].sort().join('-');
+                if(drawnSpouses.has(hash)) return;
+                drawnSpouses.add(hash);
+
+                const p1 = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`);
+                const p2 = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
+                
+                if(p1 && p2) {
+                    const x1 = p1.offsetLeft + p1.offsetWidth/2;
+                    const y1 = p1.offsetTop + p1.offsetHeight/2;
+                    const x2 = p2.offsetLeft + p2.offsetWidth/2;
+                    const y2 = p2.offsetTop + p2.offsetHeight/2;
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+                    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+                    line.setAttribute('stroke', '#ec4899'); // Pink
+                    line.setAttribute('stroke-width', '3');
+                    line.setAttribute('stroke-dasharray', '8 4');
+                    svg.appendChild(line);
+                }
+            });
+
+            // 2. Zeichne Eltern-Kind Linien (Orthogonal/Gewinkelt)
+            const children = connections.filter(c => c.type === 'child'); // to_person = Elter, from_person = Kind
+            
+            children.forEach(c => {
+                const childNode = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`);
+                const parentNode = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
+                
+                if(childNode && parentNode) {
+                    // Startpunkt unten am Elternteil
+                    const px = parentNode.offsetLeft + parentNode.offsetWidth/2;
+                    const py = parentNode.offsetTop + parentNode.offsetHeight;
+                    
+                    // Endpunkt oben am Kind
+                    const cx = childNode.offsetLeft + childNode.offsetWidth/2;
+                    const cy = childNode.offsetTop;
+
+                    // Zeichne eine Kurve (Bezier) oder eckige Linie
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const d = `M ${px} ${py} C ${px} ${py + 40}, ${cx} ${cy - 40}, ${cx} ${cy}`;
+                    
+                    path.setAttribute('d', d);
+                    path.setAttribute('fill', 'none');
+                    path.setAttribute('stroke', '#475569'); // Slate dunkel
+                    path.setAttribute('stroke-width', '2');
+                    svg.appendChild(path);
+                }
+            });
+        }
+
+        // Hilfsfunktion gegen XSS
+        function escapeHTML(str) { return (str||'').replace(/[&<>'"]/g, t => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[t]||t)); }
+        
+        // Simulierter Auto-Layout Algorithmus (Gruppiert grob nach Generation via Alter)
+        function autoLayoutTree() {
+            if(!confirm("Achtung: Dies überschreibt deine manuell gezogenen Positionen. Fortfahren?")) return;
+            
+            let sortedPersons = [...persons].sort((a,b) => {
+                const yearA = a.birth_date ? parseInt(a.birth_date.split('-')[0]) : 2000;
+                const yearB = b.birth_date ? parseInt(b.birth_date.split('-')[0]) : 2000;
+                return yearA - yearB; // Älteste zuerst
+            });
+
+            let currentY = 50;
+            let currentX = 50;
+            let lastDecade = null;
+
+            sortedPersons.forEach(async (p, index) => {
+                const year = p.birth_date ? parseInt(p.birth_date.split('-')[0]) : 2000;
+                const decade = Math.floor(year / 20); // Gruppiere alle 20 Jahre als eine Generation
+
+                if(lastDecade !== null && decade > lastDecade) {
+                    currentY += 150; // Neue Ebene drunter
+                    currentX = 50;   // Wieder links anfangen
+                }
+                lastDecade = decade;
+
+                // Speichern in DB
+                await fetch('/api/tree', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ person_id: p.id, x_pos: currentX, y_pos: currentY })
+                });
+
+                currentX += 200; // Nächste Person rechts daneben
+                if(currentX > 1000) { currentX = 50; currentY += 80; } // Zeilenumbruch
+            });
+
+            setTimeout(loadTree, 500); // Neuladen nach kurzem Warten
+        }
+    </script>
+</body>
+</html>
