@@ -11,14 +11,10 @@
         .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        .tag-marker { position: absolute; transform: translate(-50%, -50%); cursor: grab; z-index: 10; display: flex; flex-direction: column; align-items: center; padding: 15px; }
+        .tag-marker { position: absolute; transform: translate(-50%, -50%); cursor: grab; z-index: 10; display: flex; flex-direction: column; align-items: center; }
         .tag-marker:active { cursor: grabbing; }
         .tag-dot { width: 16px; height: 16px; background-color: #ef4444; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: transform 0.1s; pointer-events: auto;}
-        .tag-marker:hover .tag-dot { transform: scale(1.3); }
-        .tag-label { background: rgba(255,255,255,0.95); color: #1f2937; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-top: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); white-space: nowrap; pointer-events: none; }
-        .tag-delete-btn { position: absolute; top: 0px; right: 0px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 11px; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; }
-        .tag-marker:hover .tag-delete-btn { opacity: 1; pointer-events: auto; }
-
+        
         #tree-viewport { position: relative; width: 100%; height: 750px; overflow: hidden; background-color: #f8fafc; border-radius: 0.75rem; border: 1px solid #e2e8f0; cursor: grab; }
         #tree-viewport:active { cursor: grabbing; }
         #tree-bg-pattern { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px); background-size: 25px 25px; }
@@ -39,6 +35,10 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Personen Tabelle Hover Effekte */
+        .person-row { cursor: pointer; }
+        .person-row:hover { background-color: #f1f5f9; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
@@ -63,6 +63,7 @@
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- TAB 1: MEDIATHEK -->
         <div id="tab-gallery" class="tab-content active">
             <div class="flex justify-between items-end mb-6">
                 <div><h2 class="text-2xl font-bold text-slate-900">Familien-Galerie</h2><p class="text-sm text-slate-500 mt-1">Klicke auf ein Bild, um Personen zu markieren.</p></div>
@@ -70,6 +71,7 @@
             <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
         </div>
 
+        <!-- TAB 2: UPLOAD -->
         <div id="tab-upload" class="tab-content">
             <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
                 <h2 class="text-2xl font-bold text-slate-900 mb-6">Neues Foto hinzufügen</h2>
@@ -82,6 +84,7 @@
             </div>
         </div>
 
+        <!-- TAB 3: PERSONEN -->
         <div id="tab-persons" class="tab-content">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div id="person-form-container" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-1 h-fit transition-all duration-300">
@@ -117,10 +120,12 @@
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2">
                     <h3 class="text-lg font-bold text-slate-900 mb-4">Datenbank</h3>
+                    <p class="text-xs text-slate-500 mb-4">Klicke auf eine Zeile, um Infos anzuzeigen. Ein <i class="fa-solid fa-star text-yellow-400 mx-1"></i> markiert Personen im Stammbaum.</p>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-slate-200">
                             <thead>
                                 <tr>
+                                    <th class="px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase"></th>
                                     <th class="px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase">Name</th>
                                     <th class="px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase">Zeitraum</th>
                                     <th class="px-3 py-3 text-right text-xs font-medium text-slate-500 uppercase">Aktion</th>
@@ -133,6 +138,7 @@
             </div>
         </div>
 
+        <!-- TAB 4: STAMMBAUM -->
         <div id="tab-tree" class="tab-content">
             <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-wrap gap-4 items-end justify-between mb-4 shadow-sm">
                 <div class="flex gap-2 items-end flex-wrap">
@@ -163,7 +169,7 @@
                     <ul class="flex-1 overflow-y-auto p-2 space-y-1" id="tree-sidebar-conns"></ul>
                 </div>
 
-                <div id="tree-viewport" class="flex-1">
+                <div id="tree-viewport" class="flex-1 relative">
                     <div id="tree-bg-pattern"></div> 
                     <div id="tree-canvas">
                         <div id="tree-background-layer" class="absolute top-0 left-0 w-full h-full pointer-events-none z-0"></div>
@@ -175,6 +181,7 @@
         </div>
     </main>
 
+    <!-- FOTO MODAL (Mit korrigiertem Hover Popup für Tags) -->
     <div id="photo-modal" class="fixed inset-0 bg-black/95 hidden z-[100] flex-col items-center justify-center p-4">
         <div class="absolute top-4 right-4 flex gap-4 z-[110]"><button onclick="closeModal()" class="text-white hover:text-red-400 text-3xl transition-colors"><i class="fa-solid fa-xmark"></i></button></div>
         <div class="relative inline-block max-w-full max-h-[90vh]" id="tag-container"><img id="modal-img" class="max-w-full max-h-[90vh] object-contain shadow-2xl rounded-sm" onmousedown="startNewTag(event)"></div>
@@ -188,11 +195,28 @@
         </div>
     </div>
 
+    <!-- PERSON INFO MODAL (Aus der Liste heraus) -->
+    <div id="person-details-modal" class="fixed inset-0 bg-black/50 hidden z-[200] flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl w-[400px] overflow-hidden">
+            <div class="bg-slate-100 p-4 border-b border-slate-200 flex justify-between items-center">
+                <h3 class="font-bold text-lg text-slate-800" id="pd-name">Name</h3>
+                <button onclick="document.getElementById('person-details-modal').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-6">
+                <p class="text-sm text-slate-600 mb-4" id="pd-life">Zeitraum</p>
+                <div class="flex items-center gap-3 mb-6 p-3 bg-blue-50 rounded-lg">
+                    <i class="fa-solid fa-images text-blue-500 text-2xl"></i>
+                    <div><span class="font-bold text-blue-900" id="pd-photo-count">0</span> <span class="text-sm text-blue-700">Fotos markiert</span></div>
+                </div>
+                <button id="pd-tree-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded transition-colors"><i class="fa-solid fa-network-wired mr-2"></i>Im Stammbaum anzeigen</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        let persons = [], connections = [], placedNodes = []; 
+        let persons = [], connections = [], placedNodes = [], allTags = []; 
         let activePhotoId = null, newTagCoords = null;
         
-        // Fester vertikaler Abstand zwischen Generationen
         const LEVEL_HEIGHT = 160; 
 
         // Zoom & Pan Logik
@@ -200,9 +224,21 @@
         let isPanning = false, startX = 0, startY = 0;
 
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadPersons(); await loadPhotos();
-            setupZoomAndPan(); switchTab('gallery');
+            await loadAllData(); 
+            setupZoomAndPan(); 
+            switchTab('gallery');
         });
+
+        async function loadAllData() {
+            [persons, connections, placedNodes, allTags] = await Promise.all([
+                fetch('/api/persons').then(r => r.json()),
+                fetch('/api/connections').then(r => r.json()),
+                fetch('/api/tree').then(r => r.json()),
+                fetch('/api/tags').then(r => r.json()) // Lädt alle Tags zum Zählen
+            ]);
+            await loadPhotos();
+            renderPersonList();
+        }
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -240,8 +276,8 @@
         
         function centerTreeView() {
             if(placedNodes.length === 0) { panX = 0; panY = 0; zoom = 1; applyTransform(); return; }
-            let minX = Math.min(...placedNodes.map(n => n.x)); let maxX = Math.max(...placedNodes.map(n => n.x));
-            let minY = Math.min(...placedNodes.map(n => n.y)); let maxY = Math.max(...placedNodes.map(n => n.y));
+            let minX = Math.min(...placedNodes.map(n => n.x_pos)); let maxX = Math.max(...placedNodes.map(n => n.x_pos));
+            let minY = Math.min(...placedNodes.map(n => n.y_pos)); let maxY = Math.max(...placedNodes.map(n => n.y_pos));
             const treeW = Math.max(100, (maxX - minX) + 300); const treeH = Math.max(100, (maxY - minY) + 300);
             const viewW = document.getElementById('tree-viewport').offsetWidth; const viewH = document.getElementById('tree-viewport').offsetHeight;
             zoom = Math.min(viewW / treeW, viewH / treeH, 1.2);
@@ -250,19 +286,63 @@
             applyTransform();
         }
 
-        async function loadPersons() {
-            const res = await fetch('/api/persons'); persons = await res.json();
+        // --- 1. PERSONEN LISTE & POPUP ---
+        function renderPersonList() {
             const tbody = document.getElementById('person-table-body');
             const selects = [document.getElementById('new-tag-select'), document.getElementById('conn-from'), document.getElementById('conn-to')];
             tbody.innerHTML = ''; let optionsHTML = '<option value="">Bitte wählen...</option>';
+            
             persons.forEach(p => {
                 const icon = p.gender === 'm' ? '<i class="fa-solid fa-mars text-blue-500 w-4"></i>' : p.gender === 'f' ? '<i class="fa-solid fa-venus text-pink-500 w-4"></i>' : '<i class="fa-solid fa-genderless text-emerald-500 w-4"></i>';
                 const bYear = p.birth_date ? p.birth_date.split('-')[0] : ''; const dYear = p.death_date ? p.death_date.split('-')[0] : '';
                 const lifeStr = (bYear || dYear) ? `${bYear ? '*'+bYear : ''} ${dYear ? ' - †'+dYear : ''}` : '-';
-                tbody.innerHTML += `<tr id="row-person-${p.id}" class="hover:bg-slate-50 cursor-default"><td class="px-3 py-3 font-medium text-slate-900">${icon} ${p.first_name} ${p.last_name} ${p.maiden_name ? `<span class="font-normal text-xs text-slate-400 ml-1">geb. ${p.maiden_name}</span>`:''}</td><td class="px-3 py-3 text-slate-500">${lifeStr}</td><td class="px-3 py-3 text-right"><button onclick='editPerson(${JSON.stringify(p)})' class="text-blue-600 hover:text-blue-900 mr-3 px-2 py-1"><i class="fa-solid fa-pen"></i></button><button onclick="deletePerson(${p.id})" class="text-red-500 hover:text-red-700 px-2 py-1"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+                const inTree = placedNodes.some(n => n.person_id == p.id);
+                const starIcon = inTree ? `<i class="fa-solid fa-star text-yellow-400" title="Im Stammbaum"></i>` : '';
+
+                tbody.innerHTML += `
+                    <tr id="row-person-${p.id}" class="person-row border-b border-slate-100" onclick="openPersonPopup(${p.id})">
+                        <td class="px-3 py-3 w-8 text-center">${starIcon}</td>
+                        <td class="px-3 py-3 font-medium text-slate-900">${icon} ${p.first_name} ${p.last_name} ${p.maiden_name ? `<span class="font-normal text-xs text-slate-400 ml-1">geb. ${p.maiden_name}</span>`:''}</td>
+                        <td class="px-3 py-3 text-slate-500">${lifeStr}</td>
+                        <td class="px-3 py-3 text-right">
+                            <button onclick='editPerson(event, ${JSON.stringify(p)})' class="text-blue-600 hover:text-blue-900 mr-3 px-2 py-1"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deletePerson(event, ${p.id})" class="text-red-500 hover:text-red-700 px-2 py-1"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>`;
                 optionsHTML += `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`;
             });
             selects.forEach(s => { if(s) s.innerHTML = optionsHTML; });
+        }
+
+        function openPersonPopup(id) {
+            const p = persons.find(x => x.id == id);
+            if(!p) return;
+            const bYear = p.birth_date ? p.birth_date.split('-')[0] : ''; const dYear = p.death_date ? p.death_date.split('-')[0] : '';
+            document.getElementById('pd-name').innerText = `${p.first_name} ${p.last_name}`;
+            document.getElementById('pd-life').innerText = (bYear || dYear) ? `${bYear ? '*'+bYear : ''} ${dYear ? ' - †'+dYear : ''}` : 'Keine Lebensdaten';
+            
+            const tagCount = allTags.filter(t => t.person_id == id).length;
+            document.getElementById('pd-photo-count').innerText = tagCount;
+            
+            const btn = document.getElementById('pd-tree-btn');
+            const inTree = placedNodes.some(n => n.person_id == p.id);
+            if(inTree) {
+                btn.className = "w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded transition-colors";
+                btn.innerHTML = `<i class="fa-solid fa-network-wired mr-2"></i>Im Stammbaum anzeigen`;
+                btn.onclick = () => {
+                    document.getElementById('person-details-modal').classList.add('hidden');
+                    switchTab('tree');
+                    const node = placedNodes.find(n => n.person_id == p.id);
+                    const viewW = document.getElementById('tree-viewport').offsetWidth; const viewH = document.getElementById('tree-viewport').offsetHeight;
+                    zoom = 1; panX = (viewW / 2) - node.x_pos; panY = (viewH / 2) - node.y_pos; applyTransform();
+                };
+            } else {
+                btn.className = "w-full bg-slate-300 text-slate-500 font-bold py-2 rounded cursor-not-allowed";
+                btn.innerHTML = `<i class="fa-solid fa-ban mr-2"></i>Nicht im Stammbaum`;
+                btn.onclick = null;
+            }
+            
+            document.getElementById('person-details-modal').classList.remove('hidden');
         }
         
         async function savePerson() {
@@ -273,23 +353,24 @@
             await fetch('/api/persons', { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
             
             if(!id) {
-                const res = await fetch('/api/persons'); const allPersons = await res.json();
-                const newPerson = allPersons.find(p => p.first_name === data.first_name && p.last_name === data.last_name);
-                if(newPerson && inTree) {
+                const allP = await fetch('/api/persons').then(r=>r.json());
+                const newP = allP.find(p => p.first_name === data.first_name && p.last_name === data.last_name);
+                if(newP && inTree) {
                     const viewW = document.getElementById('tree-viewport').offsetWidth; const viewH = document.getElementById('tree-viewport').offsetHeight;
                     const newX = (-panX + (viewW / 2)) / zoom; const newY = Math.round(((-panY + (viewH / 2)) / zoom) / LEVEL_HEIGHT) * LEVEL_HEIGHT;
-                    await fetch('/api/tree', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ person_id: newPerson.id, x_pos: newX, y_pos: newY }) });
+                    await fetch('/api/tree', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ person_id: newP.id, x_pos: newX, y_pos: newY }) });
                 }
             } else if(!inTree) await fetch(`/api/tree?id=${id}`, { method: 'DELETE' });
 
-            resetPersonForm(); await loadPersons();
+            resetPersonForm(); await loadAllData();
         }
 
-        function editPerson(p) {
+        function editPerson(e, p) {
+            e.stopPropagation();
             document.querySelectorAll('tr[id^="row-person-"]').forEach(tr => tr.classList.remove('edit-mode-row'));
             const row = document.getElementById(`row-person-${p.id}`); if(row) row.classList.add('edit-mode-row');
             document.getElementById('p-id').value = p.id; document.getElementById('p-first').value = p.first_name; document.getElementById('p-last').value = p.last_name; document.getElementById('p-maiden').value = p.maiden_name || ''; document.getElementById('p-gender').value = p.gender || 'd'; document.getElementById('p-birth').value = p.birth_date || ''; document.getElementById('p-death').value = p.death_date || ''; 
-            fetch('/api/tree').then(r => r.json()).then(nodes => { document.getElementById('p-in-tree').checked = !!nodes.find(n => n.person_id == p.id); });
+            document.getElementById('p-in-tree').checked = placedNodes.some(n => n.person_id == p.id);
             const container = document.getElementById('person-form-container'); container.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50'); 
             document.getElementById('person-form-title').innerHTML = `<span class="text-blue-600"><i class="fa-solid fa-pen-to-square mr-2"></i>Wird bearbeitet:</span> ${p.first_name}`; 
             document.getElementById('cancel-edit-btn').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -302,27 +383,43 @@
             document.getElementById('p-gender').value = 'm'; document.getElementById('p-in-tree').checked = true;
             document.getElementById('person-form-title').innerText = "Neue Person anlegen"; document.getElementById('cancel-edit-btn').classList.add('hidden');
         }
-        async function deletePerson(id) { if(confirm("Diese Person wirklich komplett löschen?")) { await fetch(`/api/persons?id=${id}`, { method: 'DELETE' }); await loadPersons(); } }
+        async function deletePerson(e, id) { e.stopPropagation(); if(confirm("Diese Person wirklich komplett löschen?")) { await fetch(`/api/persons?id=${id}`, { method: 'DELETE' }); await loadAllData(); } }
 
-        async function uploadPhoto() { const fileInput = document.getElementById('fileInput'); if(!fileInput.files.length) return alert("Bitte wähle ein Bild aus."); const btn = event.currentTarget; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Lädt hoch...'; btn.disabled = true; const fd = new FormData(); fd.append('file', fileInput.files[0]); fd.append('date_taken', document.getElementById('dateInput').value); fd.append('description', document.getElementById('descInput').value); await fetch('/api/photos', { method: 'POST', body: fd }); fileInput.value = ''; document.getElementById('dateInput').value = ''; document.getElementById('descInput').value = ''; btn.innerHTML = '<i class="fa-solid fa-upload mr-2"></i>Foto hochladen'; btn.disabled = false; await loadPhotos(); switchTab('gallery'); }
+        // --- 2. MEDIATHEK & 3. TAGGING (Mit neuem Popup Hover und Löschen) ---
+        async function uploadPhoto() { const fileInput = document.getElementById('fileInput'); if(!fileInput.files.length) return alert("Bitte wähle ein Bild aus."); const btn = event.currentTarget; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Lädt hoch...'; btn.disabled = true; const fd = new FormData(); fd.append('file', fileInput.files[0]); fd.append('date_taken', document.getElementById('dateInput').value); fd.append('description', document.getElementById('descInput').value); await fetch('/api/photos', { method: 'POST', body: fd }); fileInput.value = ''; document.getElementById('dateInput').value = ''; document.getElementById('descInput').value = ''; btn.innerHTML = '<i class="fa-solid fa-upload mr-2"></i>Foto hochladen'; btn.disabled = false; await loadAllData(); switchTab('gallery'); }
         async function loadPhotos() { const res = await fetch('/api/photos'); const photos = await res.json(); const grid = document.getElementById('gallery-grid'); grid.innerHTML = ''; photos.forEach(photo => { const dateStr = photo.date_taken ? photo.date_taken.split('-').reverse().join('.') : ''; grid.innerHTML += `<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden group relative"><div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"><button onclick="deletePhoto(${photo.id}, event)" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full shadow flex items-center justify-center"><i class="fa-solid fa-trash"></i></button></div><div class="h-48 bg-slate-100 cursor-pointer overflow-hidden" onclick="openModal(${photo.id}, '${photo.url}')"><img src="${photo.url}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"></div><div class="p-4"><p class="text-xs font-bold text-blue-600 mb-1">${dateStr}</p><p class="text-sm text-slate-700 line-clamp-2">${escapeHTML(photo.description) || '<i>Keine Beschreibung</i>'}</p></div></div>`; }); }
-        async function deletePhoto(id, e) { e.stopPropagation(); if(confirm("Foto löschen?")) { await fetch(`/api/photos?id=${id}`, { method: 'DELETE' }); loadPhotos(); } }
+        async function deletePhoto(id, e) { e.stopPropagation(); if(confirm("Foto löschen?")) { await fetch(`/api/photos?id=${id}`, { method: 'DELETE' }); await loadAllData(); } }
         
         async function openModal(id, url) { activePhotoId = id; document.getElementById('modal-img').src = url; document.getElementById('photo-modal').classList.remove('hidden'); document.getElementById('photo-modal').classList.add('flex'); await loadTags(); }
         function closeModal() { document.getElementById('photo-modal').classList.add('hidden'); document.getElementById('photo-modal').classList.remove('flex'); cancelNewTag(); }
         function startNewTag(e) { if(e.target.id !== 'modal-img') return; const rect = e.target.getBoundingClientRect(); newTagCoords = { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 }; const popup = document.getElementById('new-tag-popup'); popup.classList.remove('hidden'); const containerRect = document.getElementById('tag-container').getBoundingClientRect(); popup.style.left = (e.clientX - containerRect.left + 15) + 'px'; popup.style.top = (e.clientY - containerRect.top + 15) + 'px'; }
         function cancelNewTag() { document.getElementById('new-tag-popup').classList.add('hidden'); newTagCoords = null; }
-        async function saveTag() { const pid = document.getElementById('new-tag-select').value; if(!pid || !newTagCoords) return; await fetch('/api/tags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ photo_id: activePhotoId, person_id: pid, x_percent: newTagCoords.x, y_percent: newTagCoords.y }) }); cancelNewTag(); loadTags(); }
-        async function deleteTag(tagId) { await fetch(`/api/tags?id=${tagId}`, { method: 'DELETE' }); loadTags(); }
+        async function saveTag() { const pid = document.getElementById('new-tag-select').value; if(!pid || !newTagCoords) return; await fetch('/api/tags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ photo_id: activePhotoId, person_id: pid, x_percent: newTagCoords.x, y_percent: newTagCoords.y }) }); cancelNewTag(); loadTags(); loadAllData(); } // Reload all to update counters
+        async function deleteTag(tagId) { await fetch(`/api/tags?id=${tagId}`, { method: 'DELETE' }); loadTags(); loadAllData(); }
+        
         async function loadTags() { 
             document.querySelectorAll('.tag-marker').forEach(e => e.remove()); const res = await fetch(`/api/tags?photoId=${activePhotoId}`); const tags = await res.json(); 
             const container = document.getElementById('tag-container'); const img = document.getElementById('modal-img'); 
             tags.forEach(tag => { 
-                const marker = document.createElement('div'); marker.className = 'tag-marker'; marker.style.left = tag.x_percent + '%'; marker.style.top = tag.y_percent + '%'; 
-                marker.innerHTML = `<div class="relative"><button class="tag-delete-btn" onclick="deleteTag(${tag.id})"><i class="fa-solid fa-xmark"></i></button><div class="tag-dot"></div></div><div class="tag-label">${tag.first_name} ${tag.last_name}</div>`; 
+                const p = persons.find(x => x.id == tag.person_id);
+                const bYear = p && p.birth_date ? p.birth_date.split('-')[0] : ''; const dYear = p && p.death_date ? p.death_date.split('-')[0] : '';
+                const lifeStr = (bYear || dYear) ? `${bYear ? '*'+bYear : ''} ${dYear ? ' - †'+dYear : ''}` : '';
+
+                const marker = document.createElement('div'); marker.className = 'tag-marker group'; marker.style.left = tag.x_percent + '%'; marker.style.top = tag.y_percent + '%'; 
+                
+                // Verbessertes Tag-Markup mit Hover-Popup
+                marker.innerHTML = `
+                    <div class="tag-dot"></div>
+                    <div class="hidden group-hover:block absolute top-6 left-1/2 -translate-x-1/2 bg-white p-3 rounded-lg shadow-xl z-50 w-48 pointer-events-auto border border-slate-200">
+                        <div class="font-bold text-slate-800 text-sm border-b border-slate-100 pb-1 mb-1">${tag.first_name} ${tag.last_name}</div>
+                        <div class="text-[11px] text-slate-500 mb-3">${lifeStr}</div>
+                        <button onclick="deleteTag(${tag.id})" class="w-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold py-1.5 rounded transition-colors"><i class="fa-solid fa-trash mr-1"></i>Markierung entfernen</button>
+                    </div>`; 
+
                 let isDragging = false; 
                 marker.addEventListener('mousedown', (e) => { 
-                    if(e.target.closest('button')) return; isDragging = true; e.stopPropagation(); 
+                    if(e.target.closest('button') || e.target.closest('.group-hover\\:block')) return; 
+                    isDragging = true; e.stopPropagation(); 
                     const dragMove = (ev) => { 
                         if(!isDragging) return; const rect = img.getBoundingClientRect(); 
                         let newX = ((ev.clientX - rect.left) / rect.width) * 100; let newY = ((ev.clientY - rect.top) / rect.height) * 100; 
@@ -340,72 +437,68 @@
 
         // --- 4. STAMMBAUM KERN ---
         async function loadTree() {
-            const [resNodes, resConns] = await Promise.all([fetch('/api/tree'), fetch('/api/connections')]);
-            const nodes = await resNodes.json();
-            connections = await resConns.json();
+            placedNodes = await fetch('/api/tree').then(r => r.json());
+            connections = await fetch('/api/connections').then(r => r.json());
 
-            const layer = document.getElementById('tree-nodes-layer'); layer.innerHTML = ''; placedNodes = []; let minY = Infinity, maxY = -Infinity;
+            const layer = document.getElementById('tree-nodes-layer'); layer.innerHTML = ''; 
+            let minY = Infinity, maxY = -Infinity;
 
-            const treePersons = persons.map(p => {
-                const nodeData = nodes.find(n => n.person_id === p.id);
-                return { ...p, x: nodeData?.x_pos ?? null, y: nodeData?.y_pos ?? null };
-            });
+            placedNodes.forEach((n) => {
+                const p = persons.find(x => x.id == n.person_id);
+                if(!p) return;
+                
+                if (n.y_pos < minY) minY = n.y_pos; if (n.y_pos > maxY) maxY = n.y_pos;
 
-            treePersons.forEach((p) => {
-                if(p.x !== null) {
-                    placedNodes.push(p); if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+                const el = document.createElement('div');
+                const genderClass = p.gender === 'm' ? 'gender-m' : p.gender === 'f' ? 'gender-f' : 'gender-d';
+                el.className = `tree-node ${genderClass} pointer-events-auto`; el.dataset.id = p.id; el.style.left = n.x_pos + 'px'; el.style.top = n.y_pos + 'px';
+                
+                const maidenStr = p.maiden_name ? `<div class="text-[10px] text-slate-400 italic font-normal">geb. ${p.maiden_name}</div>` : '';
+                const bYear = p.birth_date ? p.birth_date.split('-')[0] : ''; const dYear = p.death_date ? p.death_date.split('-')[0] : '';
+                let lifeStr = ''; if(bYear || dYear) lifeStr = `<div class="text-[10px] text-slate-500">${bYear ? '*'+bYear : ''} ${dYear ? '†'+dYear : ''}</div>`;
 
-                    const el = document.createElement('div');
-                    const genderClass = p.gender === 'm' ? 'gender-m' : p.gender === 'f' ? 'gender-f' : 'gender-d';
-                    el.className = `tree-node ${genderClass} pointer-events-auto`; el.dataset.id = p.id; el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
-                    
-                    const maidenStr = p.maiden_name ? `<div class="text-[10px] text-slate-400 italic font-normal">geb. ${p.maiden_name}</div>` : '';
-                    const bYear = p.birth_date ? p.birth_date.split('-')[0] : ''; const dYear = p.death_date ? p.death_date.split('-')[0] : '';
-                    let lifeStr = ''; if(bYear || dYear) lifeStr = `<div class="text-[10px] text-slate-500">${bYear ? '*'+bYear : ''} ${dYear ? '†'+dYear : ''}</div>`;
+                el.innerHTML = `<button class="node-delete-btn" onclick="removeNodeFromTree(${p.id}, event)" title="Aus Ansicht entfernen"><i class="fa-solid fa-xmark"></i></button><div class="font-bold text-slate-800 text-sm">${p.first_name} ${p.last_name}</div>${maidenStr}${lifeStr}`;
 
-                    el.innerHTML = `<button class="node-delete-btn" onclick="removeNodeFromTree(${p.id}, event)" title="Aus Ansicht entfernen"><i class="fa-solid fa-xmark"></i></button><div class="font-bold text-slate-800 text-sm">${p.first_name} ${p.last_name}</div>${maidenStr}${lifeStr}`;
-
-                    el.addEventListener('mousedown', (e) => {
-                        if(e.target.closest('button')) return;
-                        const startNodeX = parseFloat(el.style.left); const startNodeY = parseFloat(el.style.top);
-                        const startMouseX = e.clientX; const startMouseY = e.clientY;
-                        const move = (ev) => { el.style.left = (startNodeX + (ev.clientX - startMouseX) / zoom) + 'px'; el.style.top = (startNodeY + (ev.clientY - startMouseY) / zoom) + 'px'; };
-                        const stop = async () => {
-                            document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
-                            // Perfektes vertikales Snapping
-                            let snappedY = Math.round(parseFloat(el.style.top) / LEVEL_HEIGHT) * LEVEL_HEIGHT; el.style.top = snappedY + 'px';
-                            await fetch('/api/tree', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ person_id: p.id, x_pos: parseFloat(el.style.left), y_pos: snappedY }) });
-                            loadTree(); 
-                        };
-                        document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop);
-                    });
-                    layer.appendChild(el);
-                }
+                el.addEventListener('mousedown', (e) => {
+                    if(e.target.closest('button')) return;
+                    const startNodeX = parseFloat(el.style.left); const startNodeY = parseFloat(el.style.top);
+                    const startMouseX = e.clientX; const startMouseY = e.clientY;
+                    const move = (ev) => { el.style.left = (startNodeX + (ev.clientX - startMouseX) / zoom) + 'px'; el.style.top = (startNodeY + (ev.clientY - startMouseY) / zoom) + 'px'; };
+                    const stop = async () => {
+                        document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
+                        let snappedY = Math.round(parseFloat(el.style.top) / LEVEL_HEIGHT) * LEVEL_HEIGHT; el.style.top = snappedY + 'px';
+                        await fetch('/api/tree', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ person_id: p.id, x_pos: parseFloat(el.style.left), y_pos: snappedY }) });
+                        loadTree(); 
+                    };
+                    document.addEventListener('mousemove', move); document.addEventListener('mouseup', stop);
+                });
+                layer.appendChild(el);
             });
 
             setTimeout(() => {
-                if (panX === 0 && panY === 0 && zoom === 1 && placedNodes.length > 0) centerTreeView();
-                drawDynamicLevels(minY, maxY); drawTreeLines(); populateTreeSidebar(treePersons);
+                drawDynamicLevels(minY, maxY); drawTreeLines(); populateTreeSidebar();
             }, 50);
         }
 
-        function populateTreeSidebar(treePersons) {
+        function populateTreeSidebar() {
             const personsList = document.getElementById('tree-sidebar-persons'); const connsList = document.getElementById('tree-sidebar-conns');
             personsList.innerHTML = ''; connsList.innerHTML = '';
 
-            treePersons.forEach(p => {
-                const isPlaced = p.x !== null; const li = document.createElement('li');
+            persons.forEach(p => {
+                const node = placedNodes.find(n => n.person_id == p.id);
+                const isPlaced = !!node;
+                const li = document.createElement('li');
                 li.className = `p-2 rounded text-xs cursor-pointer flex justify-between items-center transition-colors ${isPlaced ? 'hover:bg-blue-50 text-slate-800' : 'text-slate-400 border border-dashed border-slate-200'}`;
                 li.innerHTML = `<span>${p.first_name} ${p.last_name}</span> ${isPlaced ? '<i class="fa-solid fa-eye text-blue-400"></i>' : '<span>(Unplatziert)</span>'}`;
                 li.onclick = async () => {
                     if(isPlaced) {
                         const viewW = document.getElementById('tree-viewport').offsetWidth; const viewH = document.getElementById('tree-viewport').offsetHeight;
-                        panX = (viewW / 2) - (p.x * zoom); panY = (viewH / 2) - (p.y * zoom); applyTransform();
+                        panX = (viewW / 2) - (node.x_pos * zoom); panY = (viewH / 2) - (node.y_pos * zoom); applyTransform();
                     } else {
                         const viewW = document.getElementById('tree-viewport').offsetWidth; const viewH = document.getElementById('tree-viewport').offsetHeight;
                         const newX = (-panX + (viewW / 2)) / zoom; const newY = Math.round(((-panY + (viewH / 2)) / zoom) / LEVEL_HEIGHT) * LEVEL_HEIGHT;
                         await fetch('/api/tree', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ person_id: p.id, x_pos: newX, y_pos: newY }) });
-                        loadTree();
+                        await loadAllData(); loadTree();
                     }
                 };
                 personsList.appendChild(li);
@@ -422,17 +515,14 @@
             });
         }
 
-        async function removeNodeFromTree(personId, e) { e.stopPropagation(); await fetch(`/api/tree?id=${personId}`, { method: 'DELETE' }); loadTree(); }
-        async function deleteConnection(connId) { await fetch(`/api/connections?id=${connId}`, { method: 'DELETE' }); loadTree(); }
+        async function removeNodeFromTree(personId, e) { e.stopPropagation(); await fetch(`/api/tree?id=${personId}`, { method: 'DELETE' }); await loadAllData(); loadTree(); }
+        async function deleteConnection(connId) { await fetch(`/api/connections?id=${connId}`, { method: 'DELETE' }); await loadAllData(); loadTree(); }
 
         function drawDynamicLevels(minY, maxY) {
             const bgLayer = document.getElementById('tree-background-layer'); bgLayer.innerHTML = '';
             if (minY === Infinity) return;
             for (let i = Math.floor(minY / LEVEL_HEIGHT) - 2; i <= Math.ceil(maxY / LEVEL_HEIGHT) + 2; i++) {
-                const line = document.createElement('div'); line.className = 'tree-level-bg'; 
-                // Optisch um 45px versetzen, damit die Karten genau in der Mitte der Ebene stehen
-                line.style.top = (i * LEVEL_HEIGHT - 45) + 'px'; 
-                bgLayer.appendChild(line);
+                const line = document.createElement('div'); line.className = 'tree-level-bg'; line.style.top = (i * LEVEL_HEIGHT - 45) + 'px'; bgLayer.appendChild(line);
             }
         }
 
@@ -440,11 +530,14 @@
             const from = document.getElementById('conn-from').value; const to = document.getElementById('conn-to').value; const type = document.getElementById('conn-type').value;
             if(!from || !to || from === to) return alert("Ungültige Personenauswahl.");
             await fetch('/api/connections', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ from_person_id: from, to_person_id: to, type }) });
-            loadTree(); 
+            await loadAllData(); loadTree(); 
         }
 
+        function getBirthYear(p) { if (!p || !p.birth_date) return 9999; return parseInt(p.birth_date.split('-')[0]) || 9999; }
+
+        // --- DER DETERMINISTISCHE AUTO-LAYOUT ALGORITHMUS ---
         async function autoLayoutTree(e) {
-            if(!confirm("Achtung: Dies ordnet den Stammbaum komplett neu an. Fortfahren?")) return;
+            if(!confirm("Achtung: Dies ordnet den Stammbaum komplett deterministisch und logisch an. Manuelle Verschiebungen werden überschrieben. Fortfahren?")) return;
             const btn = e.currentTarget; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Berechne...';
             
             let depths = {}; persons.forEach(p => depths[p.id] = 0);
@@ -455,48 +548,70 @@
                 });
             }
 
-            let positions = {}; persons.forEach(p => positions[p.id] = { x: 1500 + Math.random() * 300, y: 1500 + depths[p.id] * LEVEL_HEIGHT });
+            let levels = {};
+            persons.forEach(p => { let d = depths[p.id]; if(!levels[d]) levels[d] = []; levels[d].push(p); });
 
-            for (let iter = 0; iter < 200; iter++) {
-                connections.filter(c => c.type === 'parent_child').forEach(c => {
-                    let p1 = positions[c.from_person_id], p2 = positions[c.to_person_id];
-                    if(p1 && p2) { let dx = (p1.x - p2.x) * 0.05; p2.x += dx; }
+            let positions = {};
+            
+            Object.keys(levels).forEach(d => {
+                // 1. Sortieren nach Alter
+                levels[d].sort((a, b) => getBirthYear(a) - getBirthYear(b));
+                
+                let orderedNodes = []; let placedSpouses = new Set();
+                levels[d].forEach(p => {
+                    if(placedSpouses.has(p.id)) return;
+                    orderedNodes.push(p);
+                    // Partner zwingend rechts daneben
+                    let spConns = connections.filter(c => c.type === 'spouse' && (c.from_person_id === p.id || c.to_person_id === p.id));
+                    spConns.forEach(c => {
+                        let spId = c.from_person_id === p.id ? c.to_person_id : c.from_person_id;
+                        if(!placedSpouses.has(spId) && levels[d].find(x => x.id === spId)) {
+                            orderedNodes.push(persons.find(x => x.id === spId)); placedSpouses.add(spId);
+                        }
+                    });
                 });
+
+                let currentX = 1500;
+                orderedNodes.forEach(p => { positions[p.id] = { x: currentX, y: parseInt(d) * LEVEL_HEIGHT }; currentX += 260; });
+            });
+
+            // Physik: Eltern mittig über Kinder ziehen
+            for (let iter = 0; iter < 40; iter++) {
+                connections.filter(c => c.type === 'parent_child').forEach(c => {
+                    let parent = positions[c.from_person_id], child = positions[c.to_person_id];
+                    if(parent && child) { parent.x += (child.x - parent.x) * 0.05; child.x += (parent.x - child.x) * 0.05; }
+                });
+                
+                // Partner festnageln (Abstand 170 + 170 = 340)
                 connections.filter(c => c.type === 'spouse').forEach(c => {
                     let p1 = positions[c.from_person_id], p2 = positions[c.to_person_id];
                     if(p1 && p2) {
-                        let center = (p1.x + p2.x) / 2;
-                        // Fest definierter Abstand für Ehepartner (170 links und 170 rechts = 340px Gesamt)
-                        p1.x += (center - 170 - p1.x) * 0.2; p2.x += (center + 170 - p2.x) * 0.2;
+                        let left = p1.x < p2.x ? p1 : p2; let right = p1.x < p2.x ? p2 : p1;
+                        let center = (left.x + right.x) / 2; left.x = center - 170; right.x = center + 170;
                     }
                 });
-                let keys = Object.keys(positions);
-                for(let a=0; a<keys.length; a++) {
-                    for(let b=a+1; b<keys.length; b++) {
-                        let k1 = keys[a], k2 = keys[b];
-                        if(depths[k1] === depths[k2]) {
-                            let p1 = positions[k1], p2 = positions[k2]; let dist = Math.abs(p1.x - p2.x);
-                            // Vergrößerter Abstoßungsradius für viel Platz (380px)
-                            if(dist < 380) { let push = (380 - dist) * 0.15; if(p1.x < p2.x) { p1.x -= push; p2.x += push; } else { p1.x += push; p2.x -= push; } }
-                        }
+
+                // Überlappung innerhalb des Levels auflösen (Drückt nach außen)
+                Object.keys(levels).forEach(d => {
+                    let nodesInLevel = levels[d].map(p => ({ id: p.id, x: positions[p.id].x })).sort((a,b) => a.x - b.x);
+                    for(let i=0; i<nodesInLevel.length - 1; i++) {
+                        let n1 = nodesInLevel[i], n2 = nodesInLevel[i+1];
+                        let diff = n2.x - n1.x;
+                        if(diff < 260) { let push = (260 - diff) / 2; positions[n1.id].x -= push; positions[n2.id].x += push; }
                     }
-                }
+                });
             }
 
             const promises = Object.entries(positions).map(([id, pos]) => fetch('/api/tree', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ person_id: parseInt(id), x_pos: pos.x, y_pos: pos.y }) }));
             await Promise.all(promises);
             btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Auto-Layout';
-            loadTree(); setTimeout(centerTreeView, 600);
+            await loadAllData(); loadTree(); setTimeout(centerTreeView, 600);
         }
 
         // --- LINIEN & HOVER TOOLTIP ---
         function attachHoverTooltip(element, text) {
-            element.addEventListener('mouseenter', () => {
-                const tt = document.getElementById('line-tooltip'); tt.innerText = "Beziehung: " + text; tt.classList.remove('hidden');
-            });
-            element.addEventListener('mousemove', (e) => {
-                const tt = document.getElementById('line-tooltip'); tt.style.left = (e.clientX + 15) + 'px'; tt.style.top = (e.clientY + 15) + 'px';
-            });
+            element.addEventListener('mouseenter', () => { const tt = document.getElementById('line-tooltip'); tt.innerText = "Beziehung: " + text; tt.classList.remove('hidden'); });
+            element.addEventListener('mousemove', (e) => { const tt = document.getElementById('line-tooltip'); tt.style.left = (e.clientX + 15) + 'px'; tt.style.top = (e.clientY + 15) + 'px'; });
             element.addEventListener('mouseleave', () => { document.getElementById('line-tooltip').classList.add('hidden'); });
         }
 
@@ -511,11 +626,15 @@
                 }
             });
 
-            const handledParentLines = new Set();
+            const handledParentLines = new Set(); const drawnPairs = new Set();
             connections.forEach(c => {
+                const hash = [c.from_person_id, c.to_person_id].sort().join('-');
+                if (c.type !== 'parent_child' && drawnPairs.has(hash)) return; 
+                if (c.type !== 'parent_child') drawnPairs.add(hash);
+
                 const p1 = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`); const p2 = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
                 if(p1 && p2) {
-                    const x1 = parseFloat(p1.style.left) + 80; const y1 = parseFloat(p1.style.top) + 20; // 80 ist Mitte der 160px Breite
+                    const x1 = parseFloat(p1.style.left) + 80; const y1 = parseFloat(p1.style.top) + 20; 
                     const x2 = parseFloat(p2.style.left) + 80; const y2 = parseFloat(p2.style.top) + 20;
                     let el;
 
@@ -530,10 +649,10 @@
                         el.setAttribute('stroke', '#8b5cf6'); el.setAttribute('stroke-dasharray', '4 6'); attachHoverTooltip(el, 'Tante / Onkel');
                     }
                     else if (c.type === 'parent_child') {
-                        const relHash = `${c.from_person_id}-${c.to_person_id}`;
+                        const childId = c.to_person_id; const relHash = `${c.from_person_id}-${childId}`;
                         if (handledParentLines.has(relHash)) return;
                         
-                        const childId = c.to_person_id; const parents = Array.from(parentMap[childId] || []);
+                        const parents = Array.from(parentMap[childId] || []);
                         let jointDrawn = false;
 
                         if (parents.length >= 2) {
@@ -570,7 +689,6 @@
                 }
             });
         }
-        function escapeHTML(str) { return (str||'').replace(/[&<>'"]/g, t => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[t]||t)); }
     </script>
 </body>
 </html>
