@@ -29,8 +29,6 @@
         .tree-node { position: absolute; background: white; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: grab; user-select: none; z-index: 20; min-width: 160px; text-align: center; transition: left 0.3s, top 0.3s;}
         .tree-node:active { cursor: grabbing; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); transform: scale(1.02); transition: none; }
         .gender-m { border-color: #3b82f6; } .gender-f { border-color: #ec4899; } .gender-d { border-color: #10b981; }
-        
-        /* CSS für Eingeheiratete / Keine Kinder von jemandem */
         .node-in-law { transform: scale(0.85); transform-origin: top center; }
         
         .node-delete-btn { position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 11px; cursor: pointer; opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
@@ -46,6 +44,11 @@
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .person-row { cursor: pointer; }
         .person-row:hover { background-color: #f1f5f9; }
+        
+        /* Carousel Arrows */
+        .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.2); color: white; border: none; padding: 15px 20px; font-size: 24px; cursor: pointer; border-radius: 8px; transition: background 0.2s; z-index: 150;}
+        .carousel-btn:hover { background: rgba(255,255,255,0.4); }
+        .carousel-prev { left: 20px; } .carousel-next { right: 20px; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
@@ -70,12 +73,26 @@
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- TAB 1: MEDIATHEK -->
+        
+        <!-- TAB 1: MEDIATHEK (Mit Ordnern) -->
         <div id="tab-gallery" class="tab-content active">
-            <div class="flex justify-between items-end mb-6">
-                <div><h2 class="text-2xl font-bold text-slate-900">Familien-Galerie</h2><p class="text-sm text-slate-500 mt-1">Klicke auf ein Bild, um Personen zu markieren.</p></div>
+            <div class="flex flex-col md:flex-row gap-6">
+                <!-- Ordner Sidebar -->
+                <div class="w-full md:w-64 shrink-0 bg-white p-4 rounded-xl border border-slate-200 shadow-sm h-fit">
+                    <h3 class="font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2"><i class="fa-regular fa-folder-open mr-2"></i>Ordner</h3>
+                    <ul id="folder-list" class="space-y-1 text-sm">
+                        <!-- Wird dynamisch gefüllt -->
+                    </ul>
+                </div>
+                
+                <!-- Galerie Grid -->
+                <div class="flex-1">
+                    <div class="flex justify-between items-end mb-4">
+                        <h2 class="text-2xl font-bold text-slate-900" id="gallery-title">Alle Fotos</h2>
+                    </div>
+                    <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                </div>
             </div>
-            <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
         </div>
 
         <!-- TAB 2: UPLOAD -->
@@ -84,7 +101,10 @@
                 <h2 class="text-2xl font-bold text-slate-900 mb-6">Neues Foto hinzufügen</h2>
                 <div class="space-y-5">
                     <div><label class="block text-sm font-medium text-slate-700 mb-1">Bilddatei</label><input type="file" id="fileInput" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"></div>
-                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Aufnahmedatum</label><input type="date" id="dateInput" class="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-medium text-slate-700 mb-1">Titel</label><input type="text" id="titleInput" placeholder="Kurzer Name..." class="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></div>
+                        <div><label class="block text-sm font-medium text-slate-700 mb-1">Aufnahmedatum</label><input type="date" id="dateInput" class="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></div>
+                    </div>
                     <div><label class="block text-sm font-medium text-slate-700 mb-1">Beschreibung</label><textarea id="descInput" rows="3" placeholder="Z.B. Sommerurlaub 1995, Taufe..." class="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></textarea></div>
                     <button onclick="uploadPhoto()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-sm"><i class="fa-solid fa-upload mr-2"></i>Foto hochladen</button>
                 </div>
@@ -188,16 +208,39 @@
         </div>
     </main>
 
-    <!-- FOTO MODAL -->
-    <div id="photo-modal" class="fixed inset-0 bg-black/95 hidden z-[100] flex-col items-center justify-center p-4">
-        <div class="absolute top-4 right-4 flex gap-4 z-[110]"><button onclick="closeModal()" class="text-white hover:text-red-400 text-3xl transition-colors"><i class="fa-solid fa-xmark"></i></button></div>
-        <div class="relative inline-block max-w-full max-h-[90vh]" id="tag-container"><img id="modal-img" class="max-w-full max-h-[90vh] object-contain shadow-2xl rounded-sm" onmousedown="startNewTag(event)"></div>
+    <!-- FOTO MODAL (Lightbox / Carousel) -->
+    <div id="photo-modal" class="fixed inset-0 bg-black/95 hidden z-[100] flex-col items-center justify-center p-4 select-none">
+        <button onclick="closeModal()" class="absolute top-4 right-4 text-white hover:text-red-400 text-3xl transition-colors z-[110]"><i class="fa-solid fa-xmark"></i></button>
+        
+        <button onclick="prevPhoto()" class="carousel-btn carousel-prev"><i class="fa-solid fa-chevron-left"></i></button>
+        <button onclick="nextPhoto()" class="carousel-btn carousel-next"><i class="fa-solid fa-chevron-right"></i></button>
+
+        <div class="relative inline-block max-w-[80vw] max-h-[90vh]" id="tag-container">
+            <img id="modal-img" class="max-w-[80vw] max-h-[90vh] object-contain shadow-2xl rounded-sm" onmousedown="startNewTag(event)">
+        </div>
         <div id="new-tag-popup" class="hidden absolute bg-white p-3 rounded-lg shadow-xl border border-slate-200 w-56 z-[120]">
             <label class="block text-xs font-bold text-slate-700 mb-2">Wer ist das?</label>
             <select id="new-tag-select" class="w-full px-2 py-1.5 border border-slate-300 rounded text-sm mb-2"></select>
             <div class="flex gap-2">
                 <button onclick="saveTag()" class="flex-1 bg-blue-600 text-white text-xs font-bold py-1.5 rounded">Speichern</button>
                 <button onclick="cancelNewTag()" class="px-2 text-slate-500 hover:bg-slate-100 rounded text-xs">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOTO BEARBEITEN MODAL -->
+    <div id="photo-edit-modal" class="fixed inset-0 bg-black/50 hidden z-[200] flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl w-[400px] overflow-hidden p-6">
+            <h3 class="font-bold text-lg text-slate-800 mb-4">Foto bearbeiten</h3>
+            <input type="hidden" id="edit-photo-id">
+            <div class="space-y-4">
+                <div><label class="block text-xs font-medium text-slate-500 mb-1">Titel</label><input type="text" id="edit-photo-title" class="w-full px-3 py-2 border rounded-md text-sm"></div>
+                <div><label class="block text-xs font-medium text-slate-500 mb-1">Aufnahmedatum</label><input type="date" id="edit-photo-date" class="w-full px-3 py-2 border rounded-md text-sm"></div>
+                <div><label class="block text-xs font-medium text-slate-500 mb-1">Beschreibung</label><textarea id="edit-photo-desc" rows="3" class="w-full px-3 py-2 border rounded-md text-sm"></textarea></div>
+            </div>
+            <div class="flex gap-2 mt-6">
+                <button onclick="savePhotoEdit()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded transition-colors">Speichern</button>
+                <button onclick="document.getElementById('photo-edit-modal').classList.add('hidden')" class="px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded transition-colors">Abbrechen</button>
             </div>
         </div>
     </div>
@@ -221,8 +264,10 @@
     </div>
 
     <script>
-        let persons = [], connections = [], placedNodes = [], allTags = []; 
+        let persons = [], connections = [], placedNodes = [], allTags = [], photos = []; 
         let activePhotoId = null, newTagCoords = null;
+        let currentFolder = "ALLE"; // Filter Zustand
+        let filteredPhotos = []; // Für das Carousel
         
         const LEVEL_HEIGHT = 160; 
 
@@ -234,10 +279,24 @@
             await loadAllData(); 
             setupZoomAndPan(); 
             switchTab('gallery');
+            
+            // Tastatur-Navigation fürs Carousel
+            document.addEventListener('keydown', (e) => {
+                if(!document.getElementById('photo-modal').classList.contains('hidden')) {
+                    if(e.key === 'ArrowRight') nextPhoto();
+                    if(e.key === 'ArrowLeft') prevPhoto();
+                    if(e.key === 'Escape') closeModal();
+                }
+            });
         });
 
+        // KUGELSICHERES LADEN
         async function fetchJSON(url) {
-            try { const res = await fetch(url); return res.ok ? await res.json() : []; } catch(e) { return []; }
+            try { 
+                const res = await fetch(url); 
+                if(!res.ok) { console.error(`Fehler bei ${url} (${res.status}). Bitte DB Tabellen/Spalten checken!`); return []; }
+                return await res.json(); 
+            } catch(e) { console.error("Netzwerkfehler:", e); return []; }
         }
 
         async function loadAllData() {
@@ -300,11 +359,8 @@
             const viewW = document.getElementById('tree-viewport').offsetWidth; 
             const viewH = document.getElementById('tree-viewport').offsetHeight;
             
-            const scaleX = viewW / treeW;
-            const scaleY = viewH / treeH;
-            
-            zoom = Math.min(scaleX, scaleY);
-            zoom = Math.max(0.1, Math.min(zoom, 1.5)); 
+            const scaleX = viewW / treeW; const scaleY = viewH / treeH;
+            zoom = Math.min(scaleX, scaleY); zoom = Math.max(0.1, Math.min(zoom, 1.5)); 
             
             const centerX = (minX + maxX) / 2; const centerY = (minY + maxY) / 2;
             panX = (viewW / 2) - (centerX * zoom); panY = (viewH / 2) - (centerY * zoom);
@@ -341,8 +397,7 @@
         }
 
         function openPersonPopup(id) {
-            const p = persons.find(x => x.id == id);
-            if(!p) return;
+            const p = persons.find(x => x.id == id); if(!p) return;
             const bYear = p.birth_date ? p.birth_date.split('-')[0] : ''; const dYear = p.death_date ? p.death_date.split('-')[0] : '';
             document.getElementById('pd-name').innerText = `${p.first_name} ${p.last_name} ${p.maiden_name ? `(geb. ${p.maiden_name})` : ''}`;
             document.getElementById('pd-life').innerText = (bYear || dYear) ? `${bYear ? '*'+bYear : ''} ${dYear ? ' - †'+dYear : ''}` : 'Keine Lebensdaten hinterlegt';
@@ -364,10 +419,8 @@
                 };
             } else {
                 btn.className = "w-full bg-slate-300 text-slate-500 font-bold py-2 rounded cursor-not-allowed";
-                btn.innerHTML = `<i class="fa-solid fa-ban mr-2"></i>Nicht im Stammbaum platziert`;
-                btn.onclick = null;
+                btn.innerHTML = `<i class="fa-solid fa-ban mr-2"></i>Nicht im Stammbaum platziert`; btn.onclick = null;
             }
-            
             document.getElementById('person-details-modal').classList.remove('hidden');
         }
         
@@ -411,13 +464,128 @@
         }
         async function deletePerson(e, id) { e.stopPropagation(); if(confirm("Diese Person wirklich komplett löschen?")) { await fetch(`/api/persons?id=${id}`, { method: 'DELETE' }); await loadAllData(); } }
 
-        // --- 2. MEDIATHEK & 3. TAGGING ---
-        async function uploadPhoto() { const fileInput = document.getElementById('fileInput'); if(!fileInput.files.length) return alert("Bitte wähle ein Bild aus."); const btn = event.currentTarget; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Lädt hoch...'; btn.disabled = true; const fd = new FormData(); fd.append('file', fileInput.files[0]); fd.append('date_taken', document.getElementById('dateInput').value); fd.append('description', document.getElementById('descInput').value); await fetch('/api/photos', { method: 'POST', body: fd }); fileInput.value = ''; document.getElementById('dateInput').value = ''; document.getElementById('descInput').value = ''; btn.innerHTML = '<i class="fa-solid fa-upload mr-2"></i>Foto hochladen'; btn.disabled = false; await loadAllData(); switchTab('gallery'); }
-        async function loadPhotos() { const photos = await fetchJSON('/api/photos'); const grid = document.getElementById('gallery-grid'); grid.innerHTML = ''; photos.forEach(photo => { const dateStr = photo.date_taken ? photo.date_taken.split('-').reverse().join('.') : ''; grid.innerHTML += `<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden group relative"><div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"><button onclick="deletePhoto(${photo.id}, event)" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full shadow flex items-center justify-center"><i class="fa-solid fa-trash"></i></button></div><div class="h-48 bg-slate-100 cursor-pointer overflow-hidden" onclick="openModal(${photo.id}, '${photo.url}')"><img src="${photo.url}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"></div><div class="p-4"><p class="text-xs font-bold text-blue-600 mb-1">${dateStr}</p><p class="text-sm text-slate-700 line-clamp-2">${escapeHTML(photo.description) || '<i>Keine Beschreibung</i>'}</p></div></div>`; }); }
-        async function deletePhoto(id, e) { e.stopPropagation(); if(confirm("Foto löschen?")) { await fetch(`/api/photos?id=${id}`, { method: 'DELETE' }); await loadAllData(); } }
+        // --- 2. MEDIATHEK (MIT ORDNERN & BEARBEITEN) ---
+        async function uploadPhoto() { 
+            const fileInput = document.getElementById('fileInput'); if(!fileInput.files.length) return alert("Bitte wähle ein Bild aus."); 
+            const btn = event.currentTarget; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Lädt hoch...'; btn.disabled = true; 
+            const fd = new FormData(); fd.append('file', fileInput.files[0]); 
+            fd.append('title', document.getElementById('titleInput').value); 
+            fd.append('date_taken', document.getElementById('dateInput').value); 
+            fd.append('description', document.getElementById('descInput').value); 
+            await fetch('/api/photos', { method: 'POST', body: fd }); 
+            
+            fileInput.value = ''; document.getElementById('titleInput').value=''; document.getElementById('dateInput').value = ''; document.getElementById('descInput').value = ''; 
+            btn.innerHTML = '<i class="fa-solid fa-upload mr-2"></i>Foto hochladen'; btn.disabled = false; 
+            await loadPhotos(); switchTab('gallery'); 
+        }
+
+        async function loadPhotos() { 
+            photos = await fetchJSON('/api/photos'); 
+            renderFolderList();
+            renderGallery();
+        }
+
+        function renderFolderList() {
+            const folders = new Set();
+            photos.forEach(p => {
+                const year = p.date_taken ? parseInt(p.date_taken.split('-')[0]) : null;
+                const folderName = year ? `${Math.floor(year/10)*10}er Jahre` : 'Unsortiert';
+                folders.add(folderName);
+            });
+            
+            const list = document.getElementById('folder-list');
+            list.innerHTML = `<li onclick="setFolder('ALLE')" class="cursor-pointer px-3 py-2 rounded-md transition-colors ${currentFolder === 'ALLE' ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-600'}"><i class="fa-solid fa-layer-group w-5"></i> Alle Fotos</li>`;
+            
+            Array.from(folders).sort().forEach(f => {
+                list.innerHTML += `<li onclick="setFolder('${f}')" class="cursor-pointer px-3 py-2 rounded-md transition-colors ${currentFolder === f ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-600'}"><i class="fa-regular fa-folder w-5"></i> ${f}</li>`;
+            });
+        }
+
+        function setFolder(folder) {
+            currentFolder = folder;
+            document.getElementById('gallery-title').innerText = folder === 'ALLE' ? 'Alle Fotos' : folder;
+            renderFolderList();
+            renderGallery();
+        }
+
+        function renderGallery() {
+            const grid = document.getElementById('gallery-grid'); grid.innerHTML = ''; 
+            
+            filteredPhotos = photos.filter(p => {
+                if(currentFolder === 'ALLE') return true;
+                const year = p.date_taken ? parseInt(p.date_taken.split('-')[0]) : null;
+                const folderName = year ? `${Math.floor(year/10)*10}er Jahre` : 'Unsortiert';
+                return folderName === currentFolder;
+            });
+
+            if(filteredPhotos.length === 0) grid.innerHTML = '<p class="text-slate-500">Keine Fotos in diesem Ordner.</p>';
+
+            filteredPhotos.forEach(photo => { 
+                const dateStr = photo.date_taken ? photo.date_taken.split('-').reverse().join('.') : ''; 
+                grid.innerHTML += `
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden group relative flex flex-col">
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-2">
+                            <button onclick="openEditPhoto(${photo.id}, event)" class="bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 rounded-full shadow flex items-center justify-center"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deletePhoto(${photo.id}, event)" class="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full shadow flex items-center justify-center"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                        <div class="h-48 bg-slate-100 cursor-pointer overflow-hidden shrink-0" onclick="openModal(${photo.id}, '${photo.url}')">
+                            <img src="${photo.url}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                        </div>
+                        <div class="p-4 flex-1 flex flex-col">
+                            ${photo.title ? `<h4 class="font-bold text-slate-800 mb-1 leading-tight">${escapeHTML(photo.title)}</h4>` : ''}
+                            <p class="text-[10px] font-bold text-blue-600 mb-1 uppercase tracking-wider">${dateStr}</p>
+                            <p class="text-xs text-slate-600 line-clamp-3">${escapeHTML(photo.description) || '<i>Keine Beschreibung</i>'}</p>
+                        </div>
+                    </div>`; 
+            }); 
+        }
+
+        async function deletePhoto(id, e) { e.stopPropagation(); if(confirm("Foto wirklich löschen?")) { await fetch(`/api/photos?id=${id}`, { method: 'DELETE' }); await loadAllData(); } }
         
-        async function openModal(id, url) { activePhotoId = id; document.getElementById('modal-img').src = url; document.getElementById('photo-modal').classList.remove('hidden'); document.getElementById('photo-modal').classList.add('flex'); await loadTags(); }
+        function openEditPhoto(id, e) {
+            e.stopPropagation();
+            const p = photos.find(x => x.id == id); if(!p) return;
+            document.getElementById('edit-photo-id').value = p.id;
+            document.getElementById('edit-photo-title').value = p.title || '';
+            document.getElementById('edit-photo-date').value = p.date_taken || '';
+            document.getElementById('edit-photo-desc').value = p.description || '';
+            document.getElementById('photo-edit-modal').classList.remove('hidden');
+            document.getElementById('photo-edit-modal').classList.add('flex');
+        }
+
+        async function savePhotoEdit() {
+            const id = document.getElementById('edit-photo-id').value;
+            const data = {
+                id: id, title: document.getElementById('edit-photo-title').value,
+                date_taken: document.getElementById('edit-photo-date').value, description: document.getElementById('edit-photo-desc').value
+            };
+            await fetch('/api/photos', { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            document.getElementById('photo-edit-modal').classList.add('hidden');
+            document.getElementById('photo-edit-modal').classList.remove('flex');
+            await loadAllData();
+        }
+        
+        // --- 3. TAGGING & CAROUSEL ---
+        async function openModal(id, url) { 
+            activePhotoId = id; document.getElementById('modal-img').src = url; 
+            document.getElementById('photo-modal').classList.remove('hidden'); document.getElementById('photo-modal').classList.add('flex'); 
+            await loadTags(); 
+        }
         function closeModal() { document.getElementById('photo-modal').classList.add('hidden'); document.getElementById('photo-modal').classList.remove('flex'); cancelNewTag(); }
+        
+        function prevPhoto() {
+            if(!filteredPhotos.length) return;
+            const idx = filteredPhotos.findIndex(p => p.id == activePhotoId);
+            const prevIdx = idx > 0 ? idx - 1 : filteredPhotos.length - 1;
+            openModal(filteredPhotos[prevIdx].id, filteredPhotos[prevIdx].url);
+        }
+        function nextPhoto() {
+            if(!filteredPhotos.length) return;
+            const idx = filteredPhotos.findIndex(p => p.id == activePhotoId);
+            const nextIdx = idx < filteredPhotos.length - 1 ? idx + 1 : 0;
+            openModal(filteredPhotos[nextIdx].id, filteredPhotos[nextIdx].url);
+        }
+
         function startNewTag(e) { if(e.target.id !== 'modal-img') return; const rect = e.target.getBoundingClientRect(); newTagCoords = { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 }; const popup = document.getElementById('new-tag-popup'); popup.classList.remove('hidden'); const containerRect = document.getElementById('tag-container').getBoundingClientRect(); popup.style.left = (e.clientX - containerRect.left + 15) + 'px'; popup.style.top = (e.clientY - containerRect.top + 15) + 'px'; }
         function cancelNewTag() { document.getElementById('new-tag-popup').classList.add('hidden'); newTagCoords = null; }
         async function saveTag() { const pid = document.getElementById('new-tag-select').value; if(!pid || !newTagCoords) return; await fetch('/api/tags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ photo_id: activePhotoId, person_id: pid, x_percent: newTagCoords.x, y_percent: newTagCoords.y }) }); cancelNewTag(); loadTags(); loadAllData(); } 
@@ -435,7 +603,7 @@
                 
                 marker.innerHTML = `
                     <div class="tag-dot"></div>
-                    <div class="hidden group-hover:block absolute top-6 left-1/2 -translate-x-1/2 bg-white p-3 rounded-lg shadow-xl z-50 w-48 pointer-events-auto border border-slate-200">
+                    <div class="hidden group-hover:block absolute top-8 left-1/2 -translate-x-1/2 bg-white p-3 rounded-lg shadow-xl z-50 w-48 pointer-events-auto border border-slate-200">
                         <div class="font-bold text-slate-800 text-sm border-b border-slate-100 pb-1 mb-1">${tag.first_name} ${tag.last_name}</div>
                         <div class="text-[11px] text-slate-500 mb-3">${lifeStr}</div>
                         <button onclick="deleteTag(${tag.id})" class="w-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold py-1.5 rounded transition-colors"><i class="fa-solid fa-trash mr-1"></i>Markierung entfernen</button>
@@ -477,7 +645,6 @@
                 const el = document.createElement('div');
                 const genderClass = p.gender === 'm' ? 'gender-m' : p.gender === 'f' ? 'gender-f' : 'gender-d';
                 
-                // Optische Markierung für "Eingeheiratete" / Personen ohne Eltern im Stammbaum
                 const isChild = connections.some(c => c.type === 'parent_child' && c.to_person_id === p.id);
                 const classAdd = !isChild ? 'node-in-law' : '';
 
@@ -552,10 +719,7 @@
             const bgLayer = document.getElementById('tree-background-layer'); bgLayer.innerHTML = '';
             if (minY === Infinity) return;
             for (let i = Math.floor(minY / LEVEL_HEIGHT) - 2; i <= Math.ceil(maxY / LEVEL_HEIGHT) + 2; i++) {
-                const line = document.createElement('div'); line.className = 'tree-level-bg'; 
-                // Optisch um 45px versetzen, damit die Karten genau in der Mitte der Ebene stehen
-                line.style.top = (i * LEVEL_HEIGHT - 45) + 'px'; 
-                bgLayer.appendChild(line);
+                const line = document.createElement('div'); line.className = 'tree-level-bg'; line.style.top = (i * LEVEL_HEIGHT - 45) + 'px'; bgLayer.appendChild(line);
             }
         }
 
@@ -620,9 +784,7 @@
                         let p2Children = connections.filter(cx => cx.type === 'parent_child' && cx.from_person_id === p2.id).map(cx=>cx.to_person_id);
                         let jointChildren = p1Children.filter(id => p2Children.includes(id));
                         
-                        // Wenn Kinder existieren, viel Platz für die Linie. Sonst nah ran.
                         let gap = jointChildren.length > 0 ? 170 : 85; 
-                        
                         left.x = center - gap; right.x = center + gap;
                     }
                 });
@@ -640,8 +802,7 @@
                         let n2Parents = connections.filter(c => c.type === 'parent_child' && c.to_person_id === n2.id).map(c=>c.from_person_id);
                         let areSiblings = n1Parents.some(pid => n2Parents.includes(pid));
 
-                        let targetDist = areSiblings ? 220 : 550; // Geschwister nah, andere Familien weeeeit weg
-
+                        let targetDist = areSiblings ? 220 : 550; 
                         if(diff < targetDist) { let push = (targetDist - diff) * 0.2; positions[n1.id].x -= push; positions[n2.id].x += push; }
                     }
                 });
@@ -653,7 +814,6 @@
             await loadAllData(); loadTree(); setTimeout(centerTreeView, 600);
         }
 
-        // --- LINIEN & HOVER TOOLTIP ---
         function attachHoverTooltip(element, text) {
             element.addEventListener('mouseenter', () => { const tt = document.getElementById('line-tooltip'); tt.innerText = "Beziehung: " + text; tt.classList.remove('hidden'); });
             element.addEventListener('mousemove', (e) => { const tt = document.getElementById('line-tooltip'); tt.style.left = (e.clientX + 15) + 'px'; tt.style.top = (e.clientY + 15) + 'px'; });
@@ -734,6 +894,7 @@
                 }
             });
         }
+        function escapeHTML(str) { return (str||'').replace(/[&<>'"]/g, t => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[t]||t)); }
     </script>
 </body>
 </html>
