@@ -46,12 +46,19 @@ export async function onRequest(context) {
         if (request.method === 'POST') {
             const formData = await request.formData();
             const file = formData.get('file');
+            const title = formData.get('title') || '';
             const description = formData.get('description');
             const date_taken = formData.get('date_taken');
             const key = `${Date.now()}-${file.name}`;
             await env.BUCKET.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
-            await env.DB.prepare("INSERT INTO photos (r2_key, description, date_taken) VALUES (?, ?, ?)")
-                .bind(key, description, date_taken).run();
+            await env.DB.prepare("INSERT INTO photos (r2_key, title, description, date_taken) VALUES (?, ?, ?, ?)")
+                .bind(key, title, description, date_taken).run();
+            return new Response(JSON.stringify({ success: true }));
+        }
+        if (request.method === 'PUT') {
+            const data = await request.json();
+            await env.DB.prepare("UPDATE photos SET title=?, description=?, date_taken=? WHERE id=?")
+                .bind(data.title, data.description, data.date_taken, data.id).run();
             return new Response(JSON.stringify({ success: true }));
         }
         if (request.method === 'DELETE') {
@@ -71,9 +78,7 @@ export async function onRequest(context) {
         }
         if (request.method === 'POST') {
             const { from_person_id, to_person_id, type } = await request.json();
-            await env.DB.prepare("DELETE FROM connections WHERE (from_person_id=? AND to_person_id=? AND type=?) OR (from_person_id=? AND to_person_id=? AND type=?)")
-                .bind(from_person_id, to_person_id, type, to_person_id, from_person_id, type).run();
-
+            await env.DB.prepare("DELETE FROM connections WHERE (from_person_id=? AND to_person_id=? AND type=?) OR (from_person_id=? AND to_person_id=? AND type=?)").bind(from_person_id, to_person_id, type, to_person_id, from_person_id, type).run();
             if (type === 'parent_child') {
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent_child')").bind(from_person_id, to_person_id).run();
                 const spouses = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'spouse'").bind(from_person_id).all();
@@ -105,7 +110,6 @@ export async function onRequest(context) {
                 const { results } = await env.DB.prepare(`SELECT t.*, p.first_name, p.last_name FROM photo_tags t JOIN persons p ON t.person_id = p.id WHERE t.photo_id = ?`).bind(photoId).all();
                 return new Response(JSON.stringify(results));
             } else {
-                // Erlaubt das Abfragen aller Tags für Zählungen
                 const { results } = await env.DB.prepare(`SELECT * FROM photo_tags`).all();
                 return new Response(JSON.stringify(results));
             }
