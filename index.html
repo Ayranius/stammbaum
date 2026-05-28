@@ -26,7 +26,7 @@
         
         .tree-level-bg { position: absolute; height: 1px; border-top: 2px dashed #94a3b8; width: 20000px; left: -10000px; pointer-events: none; }
         
-        .tree-node { position: absolute; background: white; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: grab; user-select: none; z-index: 20; min-width: 160px; text-align: center; transition: left 0.3s, top 0.3s;}
+        .tree-node { position: absolute; background: white; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: grab; user-select: none; z-index: 20; min-width: 160px; max-width: 220px; text-align: center; transition: left 0.3s, top 0.3s;}
         .tree-node:active { cursor: grabbing; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); transform: scale(1.02); transition: none; }
         .gender-m { border-color: #3b82f6; } .gender-f { border-color: #ec4899; } .gender-d { border-color: #10b981; }
         .node-in-law { transform: scale(0.85); transform-origin: top center; }
@@ -45,7 +45,6 @@
         .person-row { cursor: pointer; }
         .person-row:hover { background-color: #f1f5f9; }
         
-        /* Carousel Arrows */
         .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.2); color: white; border: none; padding: 15px 20px; font-size: 24px; cursor: pointer; border-radius: 8px; transition: background 0.2s; z-index: 150;}
         .carousel-btn:hover { background: rgba(255,255,255,0.4); }
         .carousel-prev { left: 20px; } .carousel-next { right: 20px; }
@@ -73,19 +72,14 @@
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        <!-- TAB 1: MEDIATHEK (Mit Ordnern) -->
+        <!-- TAB 1: MEDIATHEK -->
         <div id="tab-gallery" class="tab-content active">
             <div class="flex flex-col md:flex-row gap-6">
-                <!-- Ordner Sidebar -->
                 <div class="w-full md:w-64 shrink-0 bg-white p-4 rounded-xl border border-slate-200 shadow-sm h-fit">
                     <h3 class="font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2"><i class="fa-regular fa-folder-open mr-2"></i>Ordner</h3>
-                    <ul id="folder-list" class="space-y-1 text-sm">
-                        <!-- Wird dynamisch gefüllt -->
-                    </ul>
+                    <ul id="folder-list" class="space-y-1 text-sm"></ul>
                 </div>
                 
-                <!-- Galerie Grid -->
                 <div class="flex-1">
                     <div class="flex justify-between items-end mb-4">
                         <h2 class="text-2xl font-bold text-slate-900" id="gallery-title">Alle Fotos</h2>
@@ -208,10 +202,9 @@
         </div>
     </main>
 
-    <!-- FOTO MODAL (Lightbox / Carousel) -->
+    <!-- FOTO MODAL -->
     <div id="photo-modal" class="fixed inset-0 bg-black/95 hidden z-[100] flex-col items-center justify-center p-4 select-none">
         <button onclick="closeModal()" class="absolute top-4 right-4 text-white hover:text-red-400 text-3xl transition-colors z-[110]"><i class="fa-solid fa-xmark"></i></button>
-        
         <button onclick="prevPhoto()" class="carousel-btn carousel-prev"><i class="fa-solid fa-chevron-left"></i></button>
         <button onclick="nextPhoto()" class="carousel-btn carousel-next"><i class="fa-solid fa-chevron-right"></i></button>
 
@@ -266,8 +259,8 @@
     <script>
         let persons = [], connections = [], placedNodes = [], allTags = [], photos = []; 
         let activePhotoId = null, newTagCoords = null;
-        let currentFolder = "ALLE"; // Filter Zustand
-        let filteredPhotos = []; // Für das Carousel
+        let currentFolder = "ALLE"; 
+        let filteredPhotos = []; 
         
         const LEVEL_HEIGHT = 160; 
 
@@ -280,7 +273,6 @@
             setupZoomAndPan(); 
             switchTab('gallery');
             
-            // Tastatur-Navigation fürs Carousel
             document.addEventListener('keydown', (e) => {
                 if(!document.getElementById('photo-modal').classList.contains('hidden')) {
                     if(e.key === 'ArrowRight') nextPhoto();
@@ -290,13 +282,12 @@
             });
         });
 
-        // KUGELSICHERES LADEN
         async function fetchJSON(url) {
             try { 
                 const res = await fetch(url); 
-                if(!res.ok) { console.error(`Fehler bei ${url} (${res.status}). Bitte DB Tabellen/Spalten checken!`); return []; }
+                if(!res.ok) { console.error(`Fehler bei ${url}`); return []; }
                 return await res.json(); 
-            } catch(e) { console.error("Netzwerkfehler:", e); return []; }
+            } catch(e) { return []; }
         }
 
         async function loadAllData() {
@@ -304,7 +295,6 @@
             connections = await fetchJSON('/api/connections');
             placedNodes = await fetchJSON('/api/tree');
             allTags = await fetchJSON('/api/tags');
-            
             await loadPhotos();
             renderPersonList();
         }
@@ -354,13 +344,17 @@
             let minX = Math.min(...validNodes.map(n => n.x_pos)); let maxX = Math.max(...validNodes.map(n => n.x_pos));
             let minY = Math.min(...validNodes.map(n => n.y_pos)); let maxY = Math.max(...validNodes.map(n => n.y_pos));
             
-            const treeW = Math.max(100, (maxX - minX) + 400); 
-            const treeH = Math.max(100, (maxY - minY) + 400);
+            // Wenn es sehr wenige/schmale Knoten sind, virtuell vergrößern, damit es nicht extrem reinzoomt
+            const treeW = Math.max(800, (maxX - minX) + 400); 
+            const treeH = Math.max(600, (maxY - minY) + 400);
             const viewW = document.getElementById('tree-viewport').offsetWidth; 
             const viewH = document.getElementById('tree-viewport').offsetHeight;
             
-            const scaleX = viewW / treeW; const scaleY = viewH / treeH;
-            zoom = Math.min(scaleX, scaleY); zoom = Math.max(0.1, Math.min(zoom, 1.5)); 
+            const scaleX = viewW / treeW;
+            const scaleY = viewH / treeH;
+            
+            zoom = Math.min(scaleX, scaleY);
+            zoom = Math.max(0.1, Math.min(zoom, 1.2)); // Sanftes Max-Zoom Limit
             
             const centerX = (minX + maxX) / 2; const centerY = (minY + maxY) / 2;
             panX = (viewW / 2) - (centerX * zoom); panY = (viewH / 2) - (centerY * zoom);
@@ -419,7 +413,8 @@
                 };
             } else {
                 btn.className = "w-full bg-slate-300 text-slate-500 font-bold py-2 rounded cursor-not-allowed";
-                btn.innerHTML = `<i class="fa-solid fa-ban mr-2"></i>Nicht im Stammbaum platziert`; btn.onclick = null;
+                btn.innerHTML = `<i class="fa-solid fa-ban mr-2"></i>Nicht im Stammbaum platziert`;
+                btn.onclick = null;
             }
             document.getElementById('person-details-modal').classList.remove('hidden');
         }
@@ -464,60 +459,49 @@
         }
         async function deletePerson(e, id) { e.stopPropagation(); if(confirm("Diese Person wirklich komplett löschen?")) { await fetch(`/api/persons?id=${id}`, { method: 'DELETE' }); await loadAllData(); } }
 
-        // --- 2. MEDIATHEK (MIT ORDNERN & BEARBEITEN) ---
+        // --- 2. MEDIATHEK (ORDNER & BEARBEITEN) ---
         async function uploadPhoto() { 
             const fileInput = document.getElementById('fileInput'); if(!fileInput.files.length) return alert("Bitte wähle ein Bild aus."); 
             const btn = event.currentTarget; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Lädt hoch...'; btn.disabled = true; 
             const fd = new FormData(); fd.append('file', fileInput.files[0]); 
-            fd.append('title', document.getElementById('titleInput').value); 
-            fd.append('date_taken', document.getElementById('dateInput').value); 
-            fd.append('description', document.getElementById('descInput').value); 
+            fd.append('title', document.getElementById('titleInput').value); fd.append('date_taken', document.getElementById('dateInput').value); fd.append('description', document.getElementById('descInput').value); 
             await fetch('/api/photos', { method: 'POST', body: fd }); 
-            
             fileInput.value = ''; document.getElementById('titleInput').value=''; document.getElementById('dateInput').value = ''; document.getElementById('descInput').value = ''; 
             btn.innerHTML = '<i class="fa-solid fa-upload mr-2"></i>Foto hochladen'; btn.disabled = false; 
-            await loadPhotos(); switchTab('gallery'); 
+            await loadAllData(); switchTab('gallery'); 
         }
 
         async function loadPhotos() { 
             photos = await fetchJSON('/api/photos'); 
-            renderFolderList();
-            renderGallery();
+            renderFolderList(); renderGallery();
         }
 
         function renderFolderList() {
             const folders = new Set();
             photos.forEach(p => {
                 const year = p.date_taken ? parseInt(p.date_taken.split('-')[0]) : null;
-                const folderName = year ? `${Math.floor(year/10)*10}er Jahre` : 'Unsortiert';
-                folders.add(folderName);
+                if(year) folders.add(`${Math.floor(year/10)*10}er Jahre`);
             });
-            
             const list = document.getElementById('folder-list');
             list.innerHTML = `<li onclick="setFolder('ALLE')" class="cursor-pointer px-3 py-2 rounded-md transition-colors ${currentFolder === 'ALLE' ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-600'}"><i class="fa-solid fa-layer-group w-5"></i> Alle Fotos</li>`;
-            
             Array.from(folders).sort().forEach(f => {
                 list.innerHTML += `<li onclick="setFolder('${f}')" class="cursor-pointer px-3 py-2 rounded-md transition-colors ${currentFolder === f ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-600'}"><i class="fa-regular fa-folder w-5"></i> ${f}</li>`;
             });
         }
 
         function setFolder(folder) {
-            currentFolder = folder;
-            document.getElementById('gallery-title').innerText = folder === 'ALLE' ? 'Alle Fotos' : folder;
-            renderFolderList();
-            renderGallery();
+            currentFolder = folder; document.getElementById('gallery-title').innerText = folder === 'ALLE' ? 'Alle Fotos' : folder;
+            renderFolderList(); renderGallery();
         }
 
         function renderGallery() {
             const grid = document.getElementById('gallery-grid'); grid.innerHTML = ''; 
-            
             filteredPhotos = photos.filter(p => {
                 if(currentFolder === 'ALLE') return true;
                 const year = p.date_taken ? parseInt(p.date_taken.split('-')[0]) : null;
-                const folderName = year ? `${Math.floor(year/10)*10}er Jahre` : 'Unsortiert';
-                return folderName === currentFolder;
+                if(!year) return false; 
+                return `${Math.floor(year/10)*10}er Jahre` === currentFolder;
             });
-
             if(filteredPhotos.length === 0) grid.innerHTML = '<p class="text-slate-500">Keine Fotos in diesem Ordner.</p>';
 
             filteredPhotos.forEach(photo => { 
@@ -545,23 +529,15 @@
         function openEditPhoto(id, e) {
             e.stopPropagation();
             const p = photos.find(x => x.id == id); if(!p) return;
-            document.getElementById('edit-photo-id').value = p.id;
-            document.getElementById('edit-photo-title').value = p.title || '';
-            document.getElementById('edit-photo-date').value = p.date_taken || '';
-            document.getElementById('edit-photo-desc').value = p.description || '';
-            document.getElementById('photo-edit-modal').classList.remove('hidden');
-            document.getElementById('photo-edit-modal').classList.add('flex');
+            document.getElementById('edit-photo-id').value = p.id; document.getElementById('edit-photo-title').value = p.title || ''; document.getElementById('edit-photo-date').value = p.date_taken || ''; document.getElementById('edit-photo-desc').value = p.description || '';
+            document.getElementById('photo-edit-modal').classList.remove('hidden'); document.getElementById('photo-edit-modal').classList.add('flex');
         }
 
         async function savePhotoEdit() {
             const id = document.getElementById('edit-photo-id').value;
-            const data = {
-                id: id, title: document.getElementById('edit-photo-title').value,
-                date_taken: document.getElementById('edit-photo-date').value, description: document.getElementById('edit-photo-desc').value
-            };
+            const data = { id: id, title: document.getElementById('edit-photo-title').value, date_taken: document.getElementById('edit-photo-date').value, description: document.getElementById('edit-photo-desc').value };
             await fetch('/api/photos', { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            document.getElementById('photo-edit-modal').classList.add('hidden');
-            document.getElementById('photo-edit-modal').classList.remove('flex');
+            document.getElementById('photo-edit-modal').classList.add('hidden'); document.getElementById('photo-edit-modal').classList.remove('flex');
             await loadAllData();
         }
         
@@ -603,10 +579,10 @@
                 
                 marker.innerHTML = `
                     <div class="tag-dot"></div>
-                    <div class="hidden group-hover:block absolute top-8 left-1/2 -translate-x-1/2 bg-white p-3 rounded-lg shadow-xl z-50 w-48 pointer-events-auto border border-slate-200">
+                    <div class="hidden group-hover:block absolute top-8 left-1/2 -translate-x-1/2 bg-white p-3 rounded-lg shadow-xl w-48 border border-slate-200" style="z-index: 999; pointer-events: auto;">
                         <div class="font-bold text-slate-800 text-sm border-b border-slate-100 pb-1 mb-1">${tag.first_name} ${tag.last_name}</div>
                         <div class="text-[11px] text-slate-500 mb-3">${lifeStr}</div>
-                        <button onclick="deleteTag(${tag.id})" class="w-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold py-1.5 rounded transition-colors"><i class="fa-solid fa-trash mr-1"></i>Markierung entfernen</button>
+                        <button onclick="deleteTag(${tag.id})" class="w-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold py-1.5 rounded transition-colors"><i class="fa-solid fa-trash mr-1"></i>Entfernen</button>
                     </div>`; 
 
                 let isDragging = false; 
@@ -644,7 +620,6 @@
 
                 const el = document.createElement('div');
                 const genderClass = p.gender === 'm' ? 'gender-m' : p.gender === 'f' ? 'gender-f' : 'gender-d';
-                
                 const isChild = connections.some(c => c.type === 'parent_child' && c.to_person_id === p.id);
                 const classAdd = !isChild ? 'node-in-law' : '';
 
@@ -839,8 +814,8 @@
 
                 const p1 = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`); const p2 = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
                 if(p1 && p2) {
-                    const x1 = parseFloat(p1.style.left) + 80; const y1 = parseFloat(p1.style.top) + 20; 
-                    const x2 = parseFloat(p2.style.left) + 80; const y2 = parseFloat(p2.style.top) + 20;
+                    const x1 = parseFloat(p1.style.left) + (p1.offsetWidth/2); const y1 = parseFloat(p1.style.top) + 20; 
+                    const x2 = parseFloat(p2.style.left) + (p2.offsetWidth/2); const y2 = parseFloat(p2.style.top) + 20;
                     let el;
 
                     if (c.type === 'spouse') {
@@ -866,9 +841,9 @@
                                     if (spousesMap[parents[i]] && spousesMap[parents[i]].has(parents[j])) {
                                         const domP1 = document.querySelector(`.tree-node[data-id="${parents[i]}"]`); const domP2 = document.querySelector(`.tree-node[data-id="${parents[j]}"]`); const domC = document.querySelector(`.tree-node[data-id="${childId}"]`);
                                         if (domP1 && domP2 && domC) {
-                                            const jointX = (parseFloat(domP1.style.left) + 80 + parseFloat(domP2.style.left) + 80) / 2;
+                                            const jointX = (parseFloat(domP1.style.left) + (domP1.offsetWidth/2) + parseFloat(domP2.style.left) + (domP2.offsetWidth/2)) / 2;
                                             const jointY = parseFloat(domP1.style.top) + 20; 
-                                            const cx = parseFloat(domC.style.left) + 80; const cy = parseFloat(domC.style.top);
+                                            const cx = parseFloat(domC.style.left) + (domC.offsetWidth/2); const cy = parseFloat(domC.style.top);
                                             el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                                             const d = `M ${jointX} ${jointY} C ${jointX} ${jointY + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
                                             el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569'); attachHoverTooltip(el, 'Gemeinsame Kinder');
@@ -881,8 +856,8 @@
                         }
 
                         if (!jointDrawn) {
-                            const px = parseFloat(p1.style.left) + 80; const py = parseFloat(p1.style.top) + 40;
-                            const cx = parseFloat(p2.style.left) + 80; const cy = parseFloat(p2.style.top);
+                            const px = parseFloat(p1.style.left) + (p1.offsetWidth/2); const py = parseFloat(p1.style.top) + 40;
+                            const cx = parseFloat(p2.style.left) + (p2.offsetWidth/2); const cy = parseFloat(p2.style.top);
                             el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                             const d = `M ${px} ${py} C ${px} ${py + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
                             el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569'); attachHoverTooltip(el, 'Elternteil -> Kind');
