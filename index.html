@@ -24,8 +24,8 @@
         #tree-bg-pattern { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px); background-size: 25px 25px; }
         #tree-canvas { position: absolute; top: 0; left: 0; width: 0; height: 0; transform-origin: 0 0; }
         
-        .tree-level-bg { position: absolute; height: 1px; border-top: 2px dashed #cbd5e1; width: 20000px; left: -10000px; pointer-events: none; }
-        .tree-node { position: absolute; background: white; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: grab; user-select: none; z-index: 20; min-width: 140px; text-align: center; transition: left 0.3s, top 0.3s;}
+        .tree-level-bg { position: absolute; height: 1px; border-top: 2px dashed #94a3b8; width: 20000px; left: -10000px; pointer-events: none; }
+        .tree-node { position: absolute; background: white; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: grab; user-select: none; z-index: 20; min-width: 160px; text-align: center; transition: left 0.3s, top 0.3s;}
         .tree-node:active { cursor: grabbing; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); transform: scale(1.02); transition: none; }
         .gender-m { border-color: #3b82f6; } .gender-f { border-color: #ec4899; } .gender-d { border-color: #10b981; }
         .node-delete-btn { position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 11px; cursor: pointer; opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
@@ -191,6 +191,8 @@
     <script>
         let persons = [], connections = [], placedNodes = []; 
         let activePhotoId = null, newTagCoords = null;
+        
+        // Fester vertikaler Abstand zwischen Generationen
         const LEVEL_HEIGHT = 160; 
 
         // Zoom & Pan Logik
@@ -336,6 +338,7 @@
             }); 
         }
 
+        // --- 4. STAMMBAUM KERN ---
         async function loadTree() {
             const [resNodes, resConns] = await Promise.all([fetch('/api/tree'), fetch('/api/connections')]);
             const nodes = await resNodes.json();
@@ -369,6 +372,7 @@
                         const move = (ev) => { el.style.left = (startNodeX + (ev.clientX - startMouseX) / zoom) + 'px'; el.style.top = (startNodeY + (ev.clientY - startMouseY) / zoom) + 'px'; };
                         const stop = async () => {
                             document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
+                            // Perfektes vertikales Snapping
                             let snappedY = Math.round(parseFloat(el.style.top) / LEVEL_HEIGHT) * LEVEL_HEIGHT; el.style.top = snappedY + 'px';
                             await fetch('/api/tree', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ person_id: p.id, x_pos: parseFloat(el.style.left), y_pos: snappedY }) });
                             loadTree(); 
@@ -425,7 +429,10 @@
             const bgLayer = document.getElementById('tree-background-layer'); bgLayer.innerHTML = '';
             if (minY === Infinity) return;
             for (let i = Math.floor(minY / LEVEL_HEIGHT) - 2; i <= Math.ceil(maxY / LEVEL_HEIGHT) + 2; i++) {
-                const line = document.createElement('div'); line.className = 'tree-level-bg'; line.style.top = (i * LEVEL_HEIGHT - 20) + 'px'; bgLayer.appendChild(line);
+                const line = document.createElement('div'); line.className = 'tree-level-bg'; 
+                // Optisch um 45px versetzen, damit die Karten genau in der Mitte der Ebene stehen
+                line.style.top = (i * LEVEL_HEIGHT - 45) + 'px'; 
+                bgLayer.appendChild(line);
             }
         }
 
@@ -448,16 +455,20 @@
                 });
             }
 
-            let positions = {}; persons.forEach(p => positions[p.id] = { x: 1500 + Math.random() * 200, y: 1500 + depths[p.id] * LEVEL_HEIGHT });
+            let positions = {}; persons.forEach(p => positions[p.id] = { x: 1500 + Math.random() * 300, y: 1500 + depths[p.id] * LEVEL_HEIGHT });
 
-            for (let iter = 0; iter < 150; iter++) {
+            for (let iter = 0; iter < 200; iter++) {
                 connections.filter(c => c.type === 'parent_child').forEach(c => {
                     let p1 = positions[c.from_person_id], p2 = positions[c.to_person_id];
-                    let dx = (p1.x - p2.x) * 0.05; p2.x += dx; 
+                    if(p1 && p2) { let dx = (p1.x - p2.x) * 0.05; p2.x += dx; }
                 });
                 connections.filter(c => c.type === 'spouse').forEach(c => {
                     let p1 = positions[c.from_person_id], p2 = positions[c.to_person_id];
-                    let center = (p1.x + p2.x) / 2; p1.x += (center - 130 - p1.x) * 0.2; p2.x += (center + 130 - p2.x) * 0.2;
+                    if(p1 && p2) {
+                        let center = (p1.x + p2.x) / 2;
+                        // Fest definierter Abstand für Ehepartner (170 links und 170 rechts = 340px Gesamt)
+                        p1.x += (center - 170 - p1.x) * 0.2; p2.x += (center + 170 - p2.x) * 0.2;
+                    }
                 });
                 let keys = Object.keys(positions);
                 for(let a=0; a<keys.length; a++) {
@@ -465,7 +476,8 @@
                         let k1 = keys[a], k2 = keys[b];
                         if(depths[k1] === depths[k2]) {
                             let p1 = positions[k1], p2 = positions[k2]; let dist = Math.abs(p1.x - p2.x);
-                            if(dist < 300) { let push = (300 - dist) * 0.1; if(p1.x < p2.x) { p1.x -= push; p2.x += push; } else { p1.x += push; p2.x -= push; } }
+                            // Vergrößerter Abstoßungsradius für viel Platz (380px)
+                            if(dist < 380) { let push = (380 - dist) * 0.15; if(p1.x < p2.x) { p1.x -= push; p2.x += push; } else { p1.x += push; p2.x -= push; } }
                         }
                     }
                 }
@@ -474,7 +486,7 @@
             const promises = Object.entries(positions).map(([id, pos]) => fetch('/api/tree', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ person_id: parseInt(id), x_pos: pos.x, y_pos: pos.y }) }));
             await Promise.all(promises);
             btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Auto-Layout';
-            loadTree(); setTimeout(centerTreeView, 500);
+            loadTree(); setTimeout(centerTreeView, 600);
         }
 
         // --- LINIEN & HOVER TOOLTIP ---
@@ -503,8 +515,8 @@
             connections.forEach(c => {
                 const p1 = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`); const p2 = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
                 if(p1 && p2) {
-                    const x1 = parseFloat(p1.style.left) + 70; const y1 = parseFloat(p1.style.top) + 20;
-                    const x2 = parseFloat(p2.style.left) + 70; const y2 = parseFloat(p2.style.top) + 20;
+                    const x1 = parseFloat(p1.style.left) + 80; const y1 = parseFloat(p1.style.top) + 20; // 80 ist Mitte der 160px Breite
+                    const x2 = parseFloat(p2.style.left) + 80; const y2 = parseFloat(p2.style.top) + 20;
                     let el;
 
                     if (c.type === 'spouse') {
@@ -530,9 +542,9 @@
                                     if (spousesMap[parents[i]] && spousesMap[parents[i]].has(parents[j])) {
                                         const domP1 = document.querySelector(`.tree-node[data-id="${parents[i]}"]`); const domP2 = document.querySelector(`.tree-node[data-id="${parents[j]}"]`); const domC = document.querySelector(`.tree-node[data-id="${childId}"]`);
                                         if (domP1 && domP2 && domC) {
-                                            const jointX = (parseFloat(domP1.style.left) + 70 + parseFloat(domP2.style.left) + 70) / 2;
+                                            const jointX = (parseFloat(domP1.style.left) + 80 + parseFloat(domP2.style.left) + 80) / 2;
                                             const jointY = parseFloat(domP1.style.top) + 20; 
-                                            const cx = parseFloat(domC.style.left) + 70; const cy = parseFloat(domC.style.top);
+                                            const cx = parseFloat(domC.style.left) + 80; const cy = parseFloat(domC.style.top);
                                             el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                                             const d = `M ${jointX} ${jointY} C ${jointX} ${jointY + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
                                             el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569'); attachHoverTooltip(el, 'Gemeinsame Kinder');
@@ -545,8 +557,8 @@
                         }
 
                         if (!jointDrawn) {
-                            const px = parseFloat(p1.style.left) + 70; const py = parseFloat(p1.style.top) + 40;
-                            const cx = parseFloat(p2.style.left) + 70; const cy = parseFloat(p2.style.top);
+                            const px = parseFloat(p1.style.left) + 80; const py = parseFloat(p1.style.top) + 40;
+                            const cx = parseFloat(p2.style.left) + 80; const cy = parseFloat(p2.style.top);
                             el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                             const d = `M ${px} ${py} C ${px} ${py + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
                             el.setAttribute('d', d); el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#475569'); attachHoverTooltip(el, 'Elternteil -> Kind');
