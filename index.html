@@ -11,14 +11,15 @@
         .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        .tag-marker { position: absolute; transform: translate(-50%, -50%); cursor: grab; z-index: 10; display: flex; flex-direction: column; align-items: center; padding: 15px; }
+        /* Foto Tags - Neues Pop-Up Hover Layout */
+        .tag-marker { position: absolute; transform: translate(-50%, -50%); z-index: 10; padding: 15px; cursor: grab; pointer-events: auto; }
         .tag-marker:active { cursor: grabbing; }
-        .tag-dot { width: 16px; height: 16px; background-color: #ef4444; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: transform 0.1s; pointer-events: auto;}
+        .tag-dot { width: 16px; height: 16px; background-color: #ef4444; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: transform 0.1s; }
         .tag-marker:hover .tag-dot { transform: scale(1.3); }
-        .tag-label { background: rgba(255,255,255,0.95); color: #1f2937; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-top: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); white-space: nowrap; pointer-events: none; }
-        .tag-delete-btn { position: absolute; top: 0px; right: 0px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 11px; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; }
-        .tag-marker:hover .tag-delete-btn { opacity: 1; pointer-events: auto; }
-
+        .tag-tooltip { display: none; position: absolute; top: 25px; left: 50%; transform: translateX(-50%); background: white; padding: 12px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 999; pointer-events: auto; width: 200px; border: 1px solid #e2e8f0; cursor: default; }
+        .tag-marker:hover .tag-tooltip { display: block; }
+        
+        /* Infinite Canvas & Zoom */
         #tree-viewport { position: relative; width: 100%; height: 750px; overflow: hidden; background-color: #f8fafc; border-radius: 0.75rem; border: 1px solid #e2e8f0; cursor: grab; }
         #tree-viewport:active { cursor: grabbing; }
         #tree-bg-pattern { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px); background-size: 25px 25px; }
@@ -72,12 +73,13 @@
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- TAB 1: MEDIATHEK -->
+        
         <div id="tab-gallery" class="tab-content active">
             <div class="flex flex-col md:flex-row gap-6">
                 <div class="w-full md:w-64 shrink-0 bg-white p-4 rounded-xl border border-slate-200 shadow-sm h-fit">
                     <h3 class="font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2"><i class="fa-regular fa-folder-open mr-2"></i>Ordner</h3>
-                    <ul id="folder-list" class="space-y-1 text-sm"></ul>
+                    <ul id="folder-list" class="space-y-1 text-sm">
+                        </ul>
                 </div>
                 
                 <div class="flex-1">
@@ -89,7 +91,6 @@
             </div>
         </div>
 
-        <!-- TAB 2: UPLOAD -->
         <div id="tab-upload" class="tab-content">
             <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
                 <h2 class="text-2xl font-bold text-slate-900 mb-6">Neues Foto hinzufügen</h2>
@@ -105,7 +106,6 @@
             </div>
         </div>
 
-        <!-- TAB 3: PERSONEN -->
         <div id="tab-persons" class="tab-content">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div id="person-form-container" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-1 h-fit transition-all duration-300">
@@ -159,7 +159,6 @@
             </div>
         </div>
 
-        <!-- TAB 4: STAMMBAUM -->
         <div id="tab-tree" class="tab-content">
             <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-wrap gap-4 items-end justify-between mb-4 shadow-sm">
                 <div class="flex gap-2 items-end flex-wrap">
@@ -202,15 +201,16 @@
         </div>
     </main>
 
-    <!-- FOTO MODAL -->
     <div id="photo-modal" class="fixed inset-0 bg-black/95 hidden z-[100] flex-col items-center justify-center p-4 select-none">
         <button onclick="closeModal()" class="absolute top-4 right-4 text-white hover:text-red-400 text-3xl transition-colors z-[110]"><i class="fa-solid fa-xmark"></i></button>
+        
         <button onclick="prevPhoto()" class="carousel-btn carousel-prev"><i class="fa-solid fa-chevron-left"></i></button>
         <button onclick="nextPhoto()" class="carousel-btn carousel-next"><i class="fa-solid fa-chevron-right"></i></button>
 
         <div class="relative inline-block max-w-[80vw] max-h-[90vh]" id="tag-container">
             <img id="modal-img" class="max-w-[80vw] max-h-[90vh] object-contain shadow-2xl rounded-sm" onmousedown="startNewTag(event)">
         </div>
+        
         <div id="new-tag-popup" class="hidden absolute bg-white p-3 rounded-lg shadow-xl border border-slate-200 w-56 z-[120]">
             <label class="block text-xs font-bold text-slate-700 mb-2">Wer ist das?</label>
             <select id="new-tag-select" class="w-full px-2 py-1.5 border border-slate-300 rounded text-sm mb-2"></select>
@@ -221,7 +221,6 @@
         </div>
     </div>
 
-    <!-- FOTO BEARBEITEN MODAL -->
     <div id="photo-edit-modal" class="fixed inset-0 bg-black/50 hidden z-[200] flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-xl w-[400px] overflow-hidden p-6">
             <h3 class="font-bold text-lg text-slate-800 mb-4">Foto bearbeiten</h3>
@@ -238,7 +237,6 @@
         </div>
     </div>
 
-    <!-- PERSON INFO MODAL -->
     <div id="person-details-modal" class="fixed inset-0 bg-black/50 hidden z-[200] flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-xl w-[400px] overflow-hidden">
             <div class="bg-slate-100 p-4 border-b border-slate-200 flex justify-between items-center">
@@ -273,6 +271,7 @@
             setupZoomAndPan(); 
             switchTab('gallery');
             
+            // Tastatur-Navigation fürs Carousel
             document.addEventListener('keydown', (e) => {
                 if(!document.getElementById('photo-modal').classList.contains('hidden')) {
                     if(e.key === 'ArrowRight') nextPhoto();
@@ -282,12 +281,13 @@
             });
         });
 
+        // KUGELSICHERES LADEN (Verhindert Absturz, falls Tabellen fehlen)
         async function fetchJSON(url) {
             try { 
                 const res = await fetch(url); 
-                if(!res.ok) { console.error(`Fehler bei ${url}`); return []; }
+                if(!res.ok) { console.error(`Fehler bei ${url} (${res.status}). Bitte DB Tabellen/Spalten checken!`); return []; }
                 return await res.json(); 
-            } catch(e) { return []; }
+            } catch(e) { console.error("Netzwerkfehler:", e); return []; }
         }
 
         async function loadAllData() {
@@ -295,6 +295,7 @@
             connections = await fetchJSON('/api/connections');
             placedNodes = await fetchJSON('/api/tree');
             allTags = await fetchJSON('/api/tags');
+            
             await loadPhotos();
             renderPersonList();
         }
@@ -308,6 +309,7 @@
             
             if(tabId === 'tree') {
                 loadTree();
+                // Wichtig: Zentrum erst berechnen, nachdem der Tab sichtbar wurde (offsetWidth braucht display:block)
                 setTimeout(() => { centerTreeView(); }, 50);
             }
         }
@@ -344,9 +346,8 @@
             let minX = Math.min(...validNodes.map(n => n.x_pos)); let maxX = Math.max(...validNodes.map(n => n.x_pos));
             let minY = Math.min(...validNodes.map(n => n.y_pos)); let maxY = Math.max(...validNodes.map(n => n.y_pos));
             
-            // Wenn es sehr wenige/schmale Knoten sind, virtuell vergrößern, damit es nicht extrem reinzoomt
-            const treeW = Math.max(800, (maxX - minX) + 400); 
-            const treeH = Math.max(600, (maxY - minY) + 400);
+            const treeW = Math.max(100, (maxX - minX) + 400); // 400px Puffer
+            const treeH = Math.max(100, (maxY - minY) + 400);
             const viewW = document.getElementById('tree-viewport').offsetWidth; 
             const viewH = document.getElementById('tree-viewport').offsetHeight;
             
@@ -354,7 +355,7 @@
             const scaleY = viewH / treeH;
             
             zoom = Math.min(scaleX, scaleY);
-            zoom = Math.max(0.1, Math.min(zoom, 1.2)); // Sanftes Max-Zoom Limit
+            zoom = Math.max(0.1, Math.min(zoom, 1.5)); // Zoom Limit
             
             const centerX = (minX + maxX) / 2; const centerY = (minY + maxY) / 2;
             panX = (viewW / 2) - (centerX * zoom); panY = (viewH / 2) - (centerY * zoom);
@@ -391,7 +392,8 @@
         }
 
         function openPersonPopup(id) {
-            const p = persons.find(x => x.id == id); if(!p) return;
+            const p = persons.find(x => x.id == id);
+            if(!p) return;
             const bYear = p.birth_date ? p.birth_date.split('-')[0] : ''; const dYear = p.death_date ? p.death_date.split('-')[0] : '';
             document.getElementById('pd-name').innerText = `${p.first_name} ${p.last_name} ${p.maiden_name ? `(geb. ${p.maiden_name})` : ''}`;
             document.getElementById('pd-life').innerText = (bYear || dYear) ? `${bYear ? '*'+bYear : ''} ${dYear ? ' - †'+dYear : ''}` : 'Keine Lebensdaten hinterlegt';
@@ -416,6 +418,7 @@
                 btn.innerHTML = `<i class="fa-solid fa-ban mr-2"></i>Nicht im Stammbaum platziert`;
                 btn.onclick = null;
             }
+            
             document.getElementById('person-details-modal').classList.remove('hidden');
         }
         
@@ -464,8 +467,11 @@
             const fileInput = document.getElementById('fileInput'); if(!fileInput.files.length) return alert("Bitte wähle ein Bild aus."); 
             const btn = event.currentTarget; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Lädt hoch...'; btn.disabled = true; 
             const fd = new FormData(); fd.append('file', fileInput.files[0]); 
-            fd.append('title', document.getElementById('titleInput').value); fd.append('date_taken', document.getElementById('dateInput').value); fd.append('description', document.getElementById('descInput').value); 
+            fd.append('title', document.getElementById('titleInput').value); 
+            fd.append('date_taken', document.getElementById('dateInput').value); 
+            fd.append('description', document.getElementById('descInput').value); 
             await fetch('/api/photos', { method: 'POST', body: fd }); 
+            
             fileInput.value = ''; document.getElementById('titleInput').value=''; document.getElementById('dateInput').value = ''; document.getElementById('descInput').value = ''; 
             btn.innerHTML = '<i class="fa-solid fa-upload mr-2"></i>Foto hochladen'; btn.disabled = false; 
             await loadAllData(); switchTab('gallery'); 
@@ -473,35 +479,43 @@
 
         async function loadPhotos() { 
             photos = await fetchJSON('/api/photos'); 
-            renderFolderList(); renderGallery();
+            renderFolderList();
+            renderGallery();
         }
 
         function renderFolderList() {
             const folders = new Set();
             photos.forEach(p => {
                 const year = p.date_taken ? parseInt(p.date_taken.split('-')[0]) : null;
-                if(year) folders.add(`${Math.floor(year/10)*10}er Jahre`);
+                const folderName = year ? `${Math.floor(year/10)*10}er Jahre` : 'Unsortiert';
+                folders.add(folderName);
             });
+            
             const list = document.getElementById('folder-list');
             list.innerHTML = `<li onclick="setFolder('ALLE')" class="cursor-pointer px-3 py-2 rounded-md transition-colors ${currentFolder === 'ALLE' ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-600'}"><i class="fa-solid fa-layer-group w-5"></i> Alle Fotos</li>`;
+            
             Array.from(folders).sort().forEach(f => {
                 list.innerHTML += `<li onclick="setFolder('${f}')" class="cursor-pointer px-3 py-2 rounded-md transition-colors ${currentFolder === f ? 'bg-blue-50 text-blue-700 font-bold' : 'hover:bg-slate-50 text-slate-600'}"><i class="fa-regular fa-folder w-5"></i> ${f}</li>`;
             });
         }
 
         function setFolder(folder) {
-            currentFolder = folder; document.getElementById('gallery-title').innerText = folder === 'ALLE' ? 'Alle Fotos' : folder;
-            renderFolderList(); renderGallery();
+            currentFolder = folder;
+            document.getElementById('gallery-title').innerText = folder === 'ALLE' ? 'Alle Fotos' : folder;
+            renderFolderList();
+            renderGallery();
         }
 
         function renderGallery() {
             const grid = document.getElementById('gallery-grid'); grid.innerHTML = ''; 
+            
             filteredPhotos = photos.filter(p => {
                 if(currentFolder === 'ALLE') return true;
                 const year = p.date_taken ? parseInt(p.date_taken.split('-')[0]) : null;
-                if(!year) return false; 
-                return `${Math.floor(year/10)*10}er Jahre` === currentFolder;
+                const folderName = year ? `${Math.floor(year/10)*10}er Jahre` : 'Unsortiert';
+                return folderName === currentFolder;
             });
+
             if(filteredPhotos.length === 0) grid.innerHTML = '<p class="text-slate-500">Keine Fotos in diesem Ordner.</p>';
 
             filteredPhotos.forEach(photo => { 
@@ -529,15 +543,23 @@
         function openEditPhoto(id, e) {
             e.stopPropagation();
             const p = photos.find(x => x.id == id); if(!p) return;
-            document.getElementById('edit-photo-id').value = p.id; document.getElementById('edit-photo-title').value = p.title || ''; document.getElementById('edit-photo-date').value = p.date_taken || ''; document.getElementById('edit-photo-desc').value = p.description || '';
-            document.getElementById('photo-edit-modal').classList.remove('hidden'); document.getElementById('photo-edit-modal').classList.add('flex');
+            document.getElementById('edit-photo-id').value = p.id;
+            document.getElementById('edit-photo-title').value = p.title || '';
+            document.getElementById('edit-photo-date').value = p.date_taken || '';
+            document.getElementById('edit-photo-desc').value = p.description || '';
+            document.getElementById('photo-edit-modal').classList.remove('hidden');
+            document.getElementById('photo-edit-modal').classList.add('flex');
         }
 
         async function savePhotoEdit() {
             const id = document.getElementById('edit-photo-id').value;
-            const data = { id: id, title: document.getElementById('edit-photo-title').value, date_taken: document.getElementById('edit-photo-date').value, description: document.getElementById('edit-photo-desc').value };
+            const data = {
+                id: id, title: document.getElementById('edit-photo-title').value,
+                date_taken: document.getElementById('edit-photo-date').value, description: document.getElementById('edit-photo-desc').value
+            };
             await fetch('/api/photos', { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            document.getElementById('photo-edit-modal').classList.add('hidden'); document.getElementById('photo-edit-modal').classList.remove('flex');
+            document.getElementById('photo-edit-modal').classList.add('hidden');
+            document.getElementById('photo-edit-modal').classList.remove('flex');
             await loadAllData();
         }
         
@@ -564,7 +586,7 @@
 
         function startNewTag(e) { if(e.target.id !== 'modal-img') return; const rect = e.target.getBoundingClientRect(); newTagCoords = { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 }; const popup = document.getElementById('new-tag-popup'); popup.classList.remove('hidden'); const containerRect = document.getElementById('tag-container').getBoundingClientRect(); popup.style.left = (e.clientX - containerRect.left + 15) + 'px'; popup.style.top = (e.clientY - containerRect.top + 15) + 'px'; }
         function cancelNewTag() { document.getElementById('new-tag-popup').classList.add('hidden'); newTagCoords = null; }
-        async function saveTag() { const pid = document.getElementById('new-tag-select').value; if(!pid || !newTagCoords) return; await fetch('/api/tags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ photo_id: activePhotoId, person_id: pid, x_percent: newTagCoords.x, y_percent: newTagCoords.y }) }); cancelNewTag(); loadTags(); loadAllData(); } 
+        async function saveTag() { const pid = document.getElementById('new-tag-select').value; if(!pid || !newTagCoords) return; await fetch('/api/tags', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ photo_id: activePhotoId, person_id: pid, x_percent: newTagCoords.x, y_percent: newTagCoords.y }) }); cancelNewTag(); loadTags(); loadAllData(); } // Reload all to update counters
         async function deleteTag(tagId) { await fetch(`/api/tags?id=${tagId}`, { method: 'DELETE' }); loadTags(); loadAllData(); }
         
         async function loadTags() { 
@@ -577,12 +599,13 @@
 
                 const marker = document.createElement('div'); marker.className = 'tag-marker group'; marker.style.left = tag.x_percent + '%'; marker.style.top = tag.y_percent + '%'; 
                 
+                // Verbessertes Tag-Markup mit Hover-Popup
                 marker.innerHTML = `
                     <div class="tag-dot"></div>
-                    <div class="hidden group-hover:block absolute top-8 left-1/2 -translate-x-1/2 bg-white p-3 rounded-lg shadow-xl w-48 border border-slate-200" style="z-index: 999; pointer-events: auto;">
+                    <div class="hidden group-hover:block absolute top-6 left-1/2 -translate-x-1/2 bg-white p-3 rounded-lg shadow-xl z-50 w-48 pointer-events-auto border border-slate-200 text-center">
                         <div class="font-bold text-slate-800 text-sm border-b border-slate-100 pb-1 mb-1">${tag.first_name} ${tag.last_name}</div>
                         <div class="text-[11px] text-slate-500 mb-3">${lifeStr}</div>
-                        <button onclick="deleteTag(${tag.id})" class="w-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold py-1.5 rounded transition-colors"><i class="fa-solid fa-trash mr-1"></i>Entfernen</button>
+                        <button onclick="deleteTag(${tag.id})" class="w-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold py-1.5 rounded transition-colors cursor-pointer"><i class="fa-solid fa-trash mr-1"></i>Entfernen</button>
                     </div>`; 
 
                 let isDragging = false; 
@@ -620,6 +643,8 @@
 
                 const el = document.createElement('div');
                 const genderClass = p.gender === 'm' ? 'gender-m' : p.gender === 'f' ? 'gender-f' : 'gender-d';
+                
+                // Ist die Person ein Kind im Stammbaum?
                 const isChild = connections.some(c => c.type === 'parent_child' && c.to_person_id === p.id);
                 const classAdd = !isChild ? 'node-in-law' : '';
 
@@ -633,9 +658,18 @@
 
                 el.addEventListener('mousedown', (e) => {
                     if(e.target.closest('button')) return;
+                    
                     const startNodeX = parseFloat(el.style.left); const startNodeY = parseFloat(el.style.top);
                     const startMouseX = e.clientX; const startMouseY = e.clientY;
-                    const move = (ev) => { el.style.left = (startNodeX + (ev.clientX - startMouseX) / zoom) + 'px'; el.style.top = (startNodeY + (ev.clientY - startMouseY) / zoom) + 'px'; };
+                    
+                    const move = (ev) => {
+                        const dx = (ev.clientX - startMouseX) / zoom;
+                        const dy = (ev.clientY - startMouseY) / zoom;
+                        el.style.left = (startNodeX + dx) + 'px';
+                        el.style.top = (startNodeY + dy) + 'px';
+                        drawTreeLines(); // Linien live updaten
+                    };
+                    
                     const stop = async () => {
                         document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop);
                         let snappedY = Math.round(parseFloat(el.style.top) / LEVEL_HEIGHT) * LEVEL_HEIGHT; el.style.top = snappedY + 'px';
@@ -647,6 +681,7 @@
                 layer.appendChild(el);
             });
 
+            // Wichtig: Warten auf DOM Update
             setTimeout(() => {
                 drawDynamicLevels(minY, maxY); drawTreeLines(); populateTreeSidebar();
             }, 50);
@@ -708,7 +743,7 @@
         function getBirthYear(p) { if (!p || !p.birth_date) return 9999; return parseInt(p.birth_date.split('-')[0]) || 9999; }
 
         async function autoLayoutTree(e) {
-            if(!confirm("Achtung: Dies ordnet den Stammbaum komplett logisch an. Manuelle Verschiebungen werden überschrieben. Fortfahren?")) return;
+            if(!confirm("Achtung: Dies ordnet den Stammbaum komplett deterministisch an. Manuelle Verschiebungen werden überschrieben. Fortfahren?")) return;
             const btn = e.currentTarget; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Berechne...';
             
             let depths = {}; persons.forEach(p => depths[p.id] = 0);
@@ -759,6 +794,7 @@
                         let p2Children = connections.filter(cx => cx.type === 'parent_child' && cx.from_person_id === p2.id).map(cx=>cx.to_person_id);
                         let jointChildren = p1Children.filter(id => p2Children.includes(id));
                         
+                        // Wenn Kinder da sind: Abstand 170 + 170 = 340. Ohne Kinder: 85 + 85 = 170.
                         let gap = jointChildren.length > 0 ? 170 : 85; 
                         left.x = center - gap; right.x = center + gap;
                     }
@@ -777,6 +813,7 @@
                         let n2Parents = connections.filter(c => c.type === 'parent_child' && c.to_person_id === n2.id).map(c=>c.from_person_id);
                         let areSiblings = n1Parents.some(pid => n2Parents.includes(pid));
 
+                        // Massiver Abstoß-Radius für fremde Familien
                         let targetDist = areSiblings ? 220 : 550; 
                         if(diff < targetDist) { let push = (targetDist - diff) * 0.2; positions[n1.id].x -= push; positions[n2.id].x += push; }
                     }
@@ -789,6 +826,7 @@
             await loadAllData(); loadTree(); setTimeout(centerTreeView, 600);
         }
 
+        // --- LINIEN & HOVER TOOLTIP ---
         function attachHoverTooltip(element, text) {
             element.addEventListener('mouseenter', () => { const tt = document.getElementById('line-tooltip'); tt.innerText = "Beziehung: " + text; tt.classList.remove('hidden'); });
             element.addEventListener('mousemove', (e) => { const tt = document.getElementById('line-tooltip'); tt.style.left = (e.clientX + 15) + 'px'; tt.style.top = (e.clientY + 15) + 'px'; });
@@ -814,6 +852,7 @@
 
                 const p1 = document.querySelector(`.tree-node[data-id="${c.from_person_id}"]`); const p2 = document.querySelector(`.tree-node[data-id="${c.to_person_id}"]`);
                 if(p1 && p2) {
+                    // Berechnung exakt über die echte HTML Breite/Höhe
                     const x1 = parseFloat(p1.style.left) + (p1.offsetWidth/2); const y1 = parseFloat(p1.style.top) + 20; 
                     const x2 = parseFloat(p2.style.left) + (p2.offsetWidth/2); const y2 = parseFloat(p2.style.top) + 20;
                     let el;
@@ -856,7 +895,7 @@
                         }
 
                         if (!jointDrawn) {
-                            const px = parseFloat(p1.style.left) + (p1.offsetWidth/2); const py = parseFloat(p1.style.top) + 40;
+                            const px = parseFloat(p1.style.left) + (p1.offsetWidth/2); const py = parseFloat(p1.style.top) + (p1.offsetHeight);
                             const cx = parseFloat(p2.style.left) + (p2.offsetWidth/2); const cy = parseFloat(p2.style.top);
                             el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                             const d = `M ${px} ${py} C ${px} ${py + 50}, ${cx} ${cy - 50}, ${cx} ${cy}`;
