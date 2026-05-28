@@ -71,57 +71,44 @@ export async function onRequest(context) {
         }
         if (request.method === 'POST') {
             const { from_person_id, to_person_id, type } = await request.json();
-            
-            // Verhindern von exakten Duplikaten
             await env.DB.prepare("DELETE FROM connections WHERE (from_person_id=? AND to_person_id=? AND type=?) OR (from_person_id=? AND to_person_id=? AND type=?)")
                 .bind(from_person_id, to_person_id, type, to_person_id, from_person_id, type).run();
 
             if (type === 'parent_child') {
-                // Elternteil eintragen
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent_child')").bind(from_person_id, to_person_id).run();
-                
-                // Automatik: Ist das Elternteil verheiratet? Dann ist der Partner ebenfalls Elternteil!
                 const spouses = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'spouse'").bind(from_person_id).all();
-                for (let sp of spouses.results) {
-                    await env.DB.prepare("INSERT OR IGNORE INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent_child')").bind(sp.to_person_id, to_person_id).run();
-                }
+                for (let sp of spouses.results) await env.DB.prepare("INSERT OR IGNORE INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent_child')").bind(sp.to_person_id, to_person_id).run();
             }
             else if (type === 'spouse') {
-                // Bei Ehepartnern direkt in beide Richtungen eintragen
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'spouse'), (?, ?, 'spouse')").bind(from_person_id, to_person_id, to_person_id, from_person_id).run();
-                
-                // Automatik: Alle bestehenden Kinder von A werden Kinder von B
                 const childrenA = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'parent_child'").bind(from_person_id).all();
-                for (let ch of childrenA.results) {
-                    await env.DB.prepare("INSERT OR IGNORE INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent_child')").bind(to_person_id, ch.to_person_id).run();
-                }
-                
-                // Automatik: Alle bestehenden Kinder von B werden Kinder von A
+                for (let ch of childrenA.results) await env.DB.prepare("INSERT OR IGNORE INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent_child')").bind(to_person_id, ch.to_person_id).run();
                 const childrenB = await env.DB.prepare("SELECT to_person_id FROM connections WHERE from_person_id = ? AND type = 'parent_child'").bind(to_person_id).all();
-                for (let ch of childrenB.results) {
-                    await env.DB.prepare("INSERT OR IGNORE INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent_child')").bind(from_person_id, ch.to_person_id).run();
-                }
+                for (let ch of childrenB.results) await env.DB.prepare("INSERT OR IGNORE INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'parent_child')").bind(from_person_id, ch.to_person_id).run();
             }
             else if (type === 'aunt_uncle') {
                 await env.DB.prepare("INSERT INTO connections (from_person_id, to_person_id, type) VALUES (?, ?, 'aunt_uncle')").bind(from_person_id, to_person_id).run();
             }
-
             return new Response(JSON.stringify({ success: true }));
         }
         if (request.method === 'DELETE') {
             const id = url.searchParams.get('id');
-            // Wenn eine Beziehung gelöscht wird, löschen wir den exakten DB-Eintrag
             await env.DB.prepare("DELETE FROM connections WHERE id = ?").bind(id).run();
             return new Response(JSON.stringify({ success: true }));
         }
     }
 
     if (path.startsWith('tags')) {
-        // [Unverändert wie in deiner letzten Version]
         if (request.method === 'GET') {
             const photoId = url.searchParams.get('photoId');
-            const { results } = await env.DB.prepare(`SELECT t.*, p.first_name, p.last_name FROM photo_tags t JOIN persons p ON t.person_id = p.id WHERE t.photo_id = ?`).bind(photoId).all();
-            return new Response(JSON.stringify(results));
+            if (photoId) {
+                const { results } = await env.DB.prepare(`SELECT t.*, p.first_name, p.last_name FROM photo_tags t JOIN persons p ON t.person_id = p.id WHERE t.photo_id = ?`).bind(photoId).all();
+                return new Response(JSON.stringify(results));
+            } else {
+                // Erlaubt das Abfragen aller Tags für Zählungen
+                const { results } = await env.DB.prepare(`SELECT * FROM photo_tags`).all();
+                return new Response(JSON.stringify(results));
+            }
         }
         if (request.method === 'POST') {
             const data = await request.json();
